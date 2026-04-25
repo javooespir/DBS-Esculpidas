@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  --font-heading: "Playfair Display", Georgia, serif;
+  --font-body: "DM Sans", system-ui, sans-serif;
+
+  /* Brand palette — rose + warm cream + near-black */
+  --color-rose: oklch(68% 0.14 345);
+  --color-rose-deep: oklch(48% 0.17 345);
+  --color-rose-pale: oklch(95% 0.03 345);
+  --color-rose-light: oklch(90% 0.06 345);
+  --color-cream: oklch(98% 0.008 60);
+  --color-cream-warm: oklch(95% 0.015 60);
+  --color-ink: oklch(14% 0.015 345);
+  --color-ink-soft: oklch(42% 0.025 345);
+  --color-ink-muted: oklch(65% 0.015 345);
+  --color-gold: oklch(78% 0.12 75);
+
+  /* Spacing */
+  --spacing-section: clamp(4rem, 8vw, 8rem);
+}
+
+:root {
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: oklch(98% 0.008 60);
+  color: oklch(14% 0.015 345);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  line-height: 1.2;
+  font-weight: 600;
+  color: oklch(14% 0.015 345);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
