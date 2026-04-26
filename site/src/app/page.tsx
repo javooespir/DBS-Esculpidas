@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   MessageCircle,
@@ -38,26 +39,11 @@ const services = [
 ];
 
 const galleryItems = [
-  {
-    label: "Hot pink & glitter",
-    bg: "linear-gradient(135deg, oklch(65% 0.25 345) 0%, oklch(20% 0.05 345) 60%, oklch(10% 0.02 345) 100%)",
-    span: "col-span-1 row-span-2 md:col-span-2 md:row-span-2",
-  },
-  {
-    label: "Azul cobalto",
-    bg: "linear-gradient(135deg, oklch(55% 0.22 250) 0%, oklch(38% 0.18 250) 100%)",
-    span: "col-span-1 row-span-1",
-  },
-  {
-    label: "Arte eléctrico",
-    bg: "linear-gradient(135deg, oklch(15% 0.04 260) 0%, oklch(40% 0.20 250) 60%, oklch(15% 0.03 260) 100%)",
-    span: "col-span-1 row-span-1",
-  },
-  {
-    label: "French negro",
-    bg: "linear-gradient(135deg, oklch(90% 0.04 345) 0%, oklch(78% 0.06 345) 50%, oklch(18% 0.03 345) 100%)",
-    span: "col-span-2 row-span-1 md:col-span-2 md:row-span-1",
-  },
+  { src: "/images/nail-5.jpg", alt: "Uñas stiletto hot pink con glitter holográfico y detalle negro" },
+  { src: "/images/nail-1.jpg", alt: "Uñas almendra nude con french negro geométrico" },
+  { src: "/images/nail-2.jpg", alt: "Uñas stiletto french negro con strass y detalles blancos" },
+  { src: "/images/nail-3.jpg", alt: "Uñas almendra con french navy y ondas plateadas" },
+  { src: "/images/nail-4.jpg", alt: "Uñas stiletto arte eléctrico azul sobre negro con glitter" },
 ];
 
 export default function Home() {
@@ -207,24 +193,40 @@ export default function Home() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.9, ease: EASE, delay: 0.15 }}
               className="relative hidden md:grid grid-cols-2 grid-rows-2 gap-3"
-              style={{ height: "400px" }}
+              style={{ height: "420px" }}
               aria-hidden="true"
             >
-              {galleryItems.slice(0, 4).map((item, i) => (
-                <div
-                  key={i}
-                  className={`rounded-2xl overflow-hidden flex items-end p-3 ${
-                    i === 0 ? "row-span-2" : ""
-                  }`}
-                  style={{ background: item.bg }}
-                >
-                  {/*
-                    REEMPLAZAR: <Image src="/images/nail-{i+1}.jpg" alt="..." fill className="object-cover" />
-                    Copiar fotos en: public/images/nail-1.jpg, nail-2.jpg, nail-3.jpg, nail-4.jpg
-                  */}
-                  <span className="text-xs text-white/50 font-medium">{item.label}</span>
-                </div>
-              ))}
+              {/* nail-5: large left, spans 2 rows */}
+              <div className="relative rounded-2xl overflow-hidden row-span-2">
+                <Image
+                  src="/images/nail-5.jpg"
+                  alt="Uñas stiletto hot pink con glitter holográfico"
+                  fill
+                  className="object-cover object-left"
+                  priority
+                  sizes="(max-width: 1200px) 250px, 300px"
+                />
+              </div>
+              {/* nail-1: top right */}
+              <div className="relative rounded-2xl overflow-hidden">
+                <Image
+                  src="/images/nail-1.jpg"
+                  alt="French negro geométrico"
+                  fill
+                  className="object-cover object-left"
+                  sizes="(max-width: 1200px) 200px, 250px"
+                />
+              </div>
+              {/* nail-3: bottom right */}
+              <div className="relative rounded-2xl overflow-hidden">
+                <Image
+                  src="/images/nail-3.jpg"
+                  alt="French navy con ondas"
+                  fill
+                  className="object-cover object-left"
+                  sizes="(max-width: 1200px) 200px, 250px"
+                />
+              </div>
               <div
                 className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: "oklch(98% 0.008 60)", boxShadow: "0 4px 16px rgba(0,0,0,0.12)" }}
@@ -279,35 +281,114 @@ export default function Home() {
               </h2>
             </motion.div>
 
-            <div
-              className="grid gap-3 md:gap-4"
-              style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr", gridTemplateRows: "220px 220px" }}
-            >
+            {/* Mobile: 2-col simple grid */}
+            <div className="grid grid-cols-2 gap-3 md:hidden">
               {galleryItems.map((item, i) => (
                 <motion.div
                   key={i}
-                  {...anim(i * 0.08)}
-                  className="rounded-2xl overflow-hidden group cursor-pointer"
-                  style={{
-                    background: item.bg,
-                    gridColumn: i === 0 ? "1 / 3" : i === 3 ? "3 / 5" : "auto",
-                    gridRow: i === 0 ? "1 / 3" : "auto",
-                  }}
-                  whileHover={prefersReducedMotion ? undefined : { scale: 1.02 }}
-                  transition={{ duration: 0.3 }}
+                  {...anim(i * 0.07)}
+                  className={`relative rounded-2xl overflow-hidden group ${
+                    i === 0 || i === 4 ? "col-span-2 h-56" : "h-44"
+                  }`}
                 >
-                  <div className="w-full h-full flex items-end p-4">
-                    {/*
-                      REEMPLAZAR con:
-                      import Image from "next/image";
-                      <Image src={`/images/nail-${i+1}.jpg`} alt={item.label} fill className="object-cover" />
-                    */}
-                    <span className="text-xs text-white/0 group-hover:text-white/60 font-medium transition-all duration-200">
-                      {item.label}
-                    </span>
-                  </div>
+                  <Image
+                    src={item.src}
+                    alt={item.alt}
+                    fill
+                    className="object-cover object-left transition-transform duration-500 group-hover:scale-105"
+                    sizes="(max-width: 768px) 100vw"
+                  />
                 </motion.div>
               ))}
+            </div>
+
+            {/* Desktop: masonry 4-col grid */}
+            <div
+              className="hidden md:grid gap-4"
+              style={{
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gridTemplateRows: "280px 280px 220px",
+              }}
+            >
+              <motion.div
+                {...anim(0)}
+                className="relative rounded-2xl overflow-hidden group"
+                style={{ gridColumn: "1 / 3", gridRow: "1 / 3" }}
+                whileHover={prefersReducedMotion ? undefined : { scale: 1.015 }}
+                transition={{ duration: 0.35 }}
+              >
+                <Image
+                  src={galleryItems[0].src}
+                  alt={galleryItems[0].alt}
+                  fill
+                  className="object-cover object-left transition-transform duration-500 group-hover:scale-105"
+                  sizes="33vw"
+                />
+              </motion.div>
+
+              <motion.div
+                {...anim(0.07)}
+                className="relative rounded-2xl overflow-hidden group"
+                style={{ gridColumn: "3 / 5", gridRow: "1 / 2" }}
+                whileHover={prefersReducedMotion ? undefined : { scale: 1.015 }}
+                transition={{ duration: 0.35 }}
+              >
+                <Image
+                  src={galleryItems[1].src}
+                  alt={galleryItems[1].alt}
+                  fill
+                  className="object-cover object-left transition-transform duration-500 group-hover:scale-105"
+                  sizes="33vw"
+                />
+              </motion.div>
+
+              <motion.div
+                {...anim(0.14)}
+                className="relative rounded-2xl overflow-hidden group"
+                style={{ gridColumn: "3 / 4", gridRow: "2 / 3" }}
+                whileHover={prefersReducedMotion ? undefined : { scale: 1.015 }}
+                transition={{ duration: 0.35 }}
+              >
+                <Image
+                  src={galleryItems[2].src}
+                  alt={galleryItems[2].alt}
+                  fill
+                  className="object-cover object-left transition-transform duration-500 group-hover:scale-105"
+                  sizes="25vw"
+                />
+              </motion.div>
+
+              <motion.div
+                {...anim(0.21)}
+                className="relative rounded-2xl overflow-hidden group"
+                style={{ gridColumn: "4 / 5", gridRow: "2 / 3" }}
+                whileHover={prefersReducedMotion ? undefined : { scale: 1.015 }}
+                transition={{ duration: 0.35 }}
+              >
+                <Image
+                  src={galleryItems[3].src}
+                  alt={galleryItems[3].alt}
+                  fill
+                  className="object-cover object-left transition-transform duration-500 group-hover:scale-105"
+                  sizes="25vw"
+                />
+              </motion.div>
+
+              <motion.div
+                {...anim(0.28)}
+                className="relative rounded-2xl overflow-hidden group"
+                style={{ gridColumn: "1 / 5", gridRow: "3 / 4" }}
+                whileHover={prefersReducedMotion ? undefined : { scale: 1.01 }}
+                transition={{ duration: 0.35 }}
+              >
+                <Image
+                  src={galleryItems[4].src}
+                  alt={galleryItems[4].alt}
+                  fill
+                  className="object-cover object-left transition-transform duration-500 group-hover:scale-105"
+                  sizes="100vw"
+                />
+              </motion.div>
             </div>
 
             <motion.div {...anim(0.3)} className="text-center mt-10">
@@ -844,28 +925,13 @@ export default function Home() {
           </div>
 
           <div
-            className="mt-8 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs"
+            className="mt-8 pt-8 flex items-center justify-center text-xs"
             style={{
               borderTop: "1px solid rgba(255,255,255,0.1)",
               color: "rgba(255,255,255,0.3)",
             }}
           >
             <p>© 2025 DBS Esculpidas. Todos los derechos reservados.</p>
-            <p>
-              Built with{" "}
-              <span style={{ color: "rgba(255,255,255,0.45)" }}>Claude Web Builder</span> by{" "}
-              <a
-                href="https://tododeia.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transition-colors duration-200 cursor-pointer"
-                style={{ color: "rgba(255,255,255,0.45)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.7)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}
-              >
-                Tododeia
-              </a>
-            </p>
           </div>
         </div>
       </footer>
