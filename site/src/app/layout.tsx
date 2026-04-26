@@ -21,11 +21,23 @@ export const metadata: Metadata = {
   description:
     "Uñas esculpidas, nail art y manicura profesional en Ituzaingó, Buenos Aires. Turnos disponibles — seguinos en Instagram para ver los últimos diseños.",
   keywords: ["uñas esculpidas", "nail art", "manicura", "Ituzaingó", "Buenos Aires", "nail studio"],
+  icons: {
+    icon: "/logo.png",
+  },
   openGraph: {
     title: "DBS Esculpidas | Nail Studio",
     description: "Uñas que hablan por vos. Ituzaingó, Buenos Aires.",
     type: "website",
     locale: "es_AR",
+    url: "https://dbsesculpidas.encende.click",
+    images: [
+      {
+        url: "/logo.png",
+        width: 1200,
+        height: 1200,
+        alt: "DBS Esculpidas Logo",
+      },
+    ],
   },
 };
 
