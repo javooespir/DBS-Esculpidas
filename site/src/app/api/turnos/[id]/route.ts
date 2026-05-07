@@ -11,7 +11,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const { id } = await params;
   const isAdmin = await getSessionFromCookies();
 
-  let body: { reason?: string; client_email?: string } = {};
+  let body: { reason?: string; client_email?: string; client_phone?: string } = {};
   try {
     body = await req.json();
   } catch {
@@ -28,9 +28,17 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if (appt.status === "cancelled")
     return NextResponse.json({ error: "Ya estaba cancelado" }, { status: 409 });
 
-  // Si no es admin, validar que el email coincida (verificación liviana)
+  // Si no es admin, validar que el email O teléfono coincida (verificación liviana)
   if (!isAdmin) {
-    if (!body.client_email || body.client_email.toLowerCase() !== appt.client_email.toLowerCase()) {
+    const emailOk =
+      body.client_email &&
+      appt.client_email &&
+      body.client_email.toLowerCase() === appt.client_email.toLowerCase();
+    const phoneOk =
+      body.client_phone &&
+      appt.client_phone &&
+      body.client_phone.replace(/\D/g, "") === appt.client_phone.replace(/\D/g, "");
+    if (!emailOk && !phoneOk) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
     const hoursAhead = (new Date(appt.scheduled_at).getTime() - Date.now()) / 3600000;

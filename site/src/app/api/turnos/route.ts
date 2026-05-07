@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   const scheduled_at = String(body.scheduled_at ?? "");
   const client_name = String(body.client_name ?? "").trim();
   const client_phone = String(body.client_phone ?? "").trim();
-  const client_email = String(body.client_email ?? "").trim().toLowerCase();
+  const client_email = String(body.client_email ?? "").trim().toLowerCase() || null;
   const notes = body.notes ? String(body.notes).slice(0, 500) : null;
 
   // Validaciones
@@ -28,7 +28,9 @@ export async function POST(req: Request) {
   if (client_name.length < 2 || client_name.length > 100)
     return NextResponse.json({ error: "Nombre inválido" }, { status: 400 });
   if (!isPhone(client_phone)) return NextResponse.json({ error: "Teléfono inválido" }, { status: 400 });
-  if (!isEmail(client_email)) return NextResponse.json({ error: "Email inválido" }, { status: 400 });
+  // Email es opcional — si se provee, debe ser válido
+  if (client_email && !isEmail(client_email))
+    return NextResponse.json({ error: "Email inválido" }, { status: 400 });
 
   const start = new Date(scheduled_at);
   if (Number.isNaN(start.getTime())) return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
@@ -88,20 +90,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No se pudo guardar el turno" }, { status: 500 });
   }
 
-  // Emails (no fallar la reserva si email falla)
+  // Emails (no fallar la reserva si email falla / si no se proveyó email, solo notificar al admin)
   const info = {
     id: created.id,
     client_name,
-    client_email,
+    client_email: client_email ?? "",
     client_phone,
     scheduled_at: created.scheduled_at,
     service_name: service.name,
     price: service.price_ars,
     deposit: service.deposit_ars,
   };
-  Promise.all([sendBookingConfirmation(info), notifyAdminNewBooking(info)]).catch((e) =>
-    console.error("Email error:", e)
-  );
+  const emailTasks = client_email
+    ? [sendBookingConfirmation(info), notifyAdminNewBooking(info)]
+    : [notifyAdminNewBooking(info)];
+  Promise.all(emailTasks).catch((e) => console.error("Email error:", e));
 
   return NextResponse.json({ id: created.id, ok: true });
 }

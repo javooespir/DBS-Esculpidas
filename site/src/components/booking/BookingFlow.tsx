@@ -74,22 +74,28 @@ export function BookingFlow({
 // LOOKUP — buscar turnos existentes y cancelar
 // =====================================================================
 function LookupBooking() {
-  const [email, setEmail] = useState("");
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [results, setResults] = useState<LookupAppointment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
+  // Detectar si lo que ingresó parece email o teléfono
+  const looksLikeEmail = query.includes("@");
+
   const search = async (e: React.FormEvent) => {
     e.preventDefault();
+    const val = query.trim();
+    if (!val) return;
     setLoading(true);
     setError(null);
     try {
+      const payload = looksLikeEmail ? { email: val } : { phone: val };
       const res = await fetch("/api/turnos/lookup", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error");
@@ -106,10 +112,13 @@ function LookupBooking() {
     if (!confirm("¿Seguro que querés cancelar este turno? Recordá: con menos de 48hs no hay devolución de seña, con menos de 24hs no se puede cancelar online.")) return;
     setCancellingId(id);
     try {
+      // Para verificar identidad: enviamos email o teléfono según lo que ingresó
+      const val = query.trim();
+      const body = looksLikeEmail ? { client_email: val } : { client_phone: val };
       const res = await fetch(`/api/turnos/${id}`, {
         method: "DELETE",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ client_email: email.trim() }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "No se pudo cancelar");
@@ -124,16 +133,17 @@ function LookupBooking() {
   return (
     <div className="max-w-xl">
       <form onSubmit={search} className="card mb-6">
-        <label htmlFor="lookup-email" className="label">Email con el que reservaste</label>
+        <label htmlFor="lookup-query" className="label">Email o teléfono con el que reservaste</label>
         <div className="flex gap-2">
           <input
-            id="lookup-email"
-            type="email"
+            id="lookup-query"
+            type="text"
             required
             className="input flex-1"
-            placeholder="tu@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            placeholder="tu@email.com o 1155xxxxxx"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setSearched(false); }}
+            autoComplete="off"
           />
           <button type="submit" disabled={loading} className="btn-primary">
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
@@ -143,7 +153,7 @@ function LookupBooking() {
       </form>
 
       {searched && results.length === 0 && (
-        <p className="text-[var(--color-muted)] text-center py-8">No encontramos turnos activos con ese email.</p>
+        <p className="text-[var(--color-muted)] text-center py-8">No encontramos turnos activos con ese dato.</p>
       )}
 
       {results.length > 0 && (
@@ -276,8 +286,13 @@ function NewBooking({
         <p className="text-[var(--color-muted)] mb-2">
           {service.name} · {fmtDate(time)} a las {fmtTime(time)}
         </p>
+        {form.email && (
+          <p className="text-sm text-[var(--color-muted)] mb-2">
+            Te enviamos un mail con los detalles.
+          </p>
+        )}
         <p className="text-sm text-[var(--color-muted)] mb-8">
-          Te enviamos un mail con los detalles. Para confirmar, mandanos la seña de{" "}
+          Para confirmar, mandanos la seña de{" "}
           <strong>{fmtMoney(service.deposit_ars)}</strong> por transferencia.
         </p>
         <a href={wa} target="_blank" rel="noopener noreferrer" className="btn-primary">
@@ -438,8 +453,11 @@ function NewBooking({
                 <input id="phone" required type="tel" className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} autoComplete="tel" />
               </div>
               <div>
-                <label htmlFor="email" className="label">Email</label>
-                <input id="email" required type="email" className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} autoComplete="email" />
+                <label htmlFor="email" className="label">
+                  Email <span className="text-[var(--color-muted)] font-normal text-xs">(opcional)</span>
+                </label>
+                <input id="email" type="email" className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} autoComplete="email" placeholder="tu@email.com" />
+                <p className="text-xs text-[var(--color-muted)] mt-1">Recomendado — te enviamos la confirmación del turno 📩</p>
               </div>
             </div>
             <div>
