@@ -92,8 +92,8 @@ export const BOOKING_RULES = {
   minHoursAhead: 24,
   /** Máximo de días en el futuro que se puede reservar */
   maxDaysAhead: 30,
-  /** Slot atómico (1 turno por hora porque trabaja una sola persona) */
-  slotMinutes: 60,
+  /** Slot atómico (granularidad cada 30 min: el primer turno arranca a las 9:00, después 9:30, 10:00, etc.) */
+  slotMinutes: 30,
   /** Política de cancelación */
   cancellation: {
     fullRefundHoursAhead: 48, // 48hs antes: devolución de seña

@@ -1,16 +1,19 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
-import type { AppointmentWithService, BlockedSlot, Service, Testimonial } from "@/lib/types";
+import type { AppointmentWithService, BlockedSlot, Service } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const now = new Date().toISOString();
-  const [{ data: upcoming }, { data: blocks }, { data: services }, { data: testimonials }] = await Promise.all([
+  // Traemos turnos desde 7 días atrás (para historial reciente y papelera)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+
+  const [{ data: appointments }, { data: blocks }, { data: services }] = await Promise.all([
     supabaseAdmin
       .from("appointments")
       .select("*, services(*)")
-      .gte("scheduled_at", new Date(Date.now() - 86400000).toISOString())
+      .gte("scheduled_at", sevenDaysAgo)
       .order("scheduled_at", { ascending: true }),
     supabaseAdmin
       .from("blocked_slots")
@@ -18,15 +21,13 @@ export default async function AdminPage() {
       .gte("end_at", now)
       .order("start_at", { ascending: true }),
     supabaseAdmin.from("services").select("*").order("display_order"),
-    supabaseAdmin.from("testimonials").select("*").order("display_order"),
   ]);
 
   return (
     <AdminDashboard
-      appointments={(upcoming ?? []) as AppointmentWithService[]}
+      appointments={(appointments ?? []) as AppointmentWithService[]}
       blocks={(blocks ?? []) as BlockedSlot[]}
       services={(services ?? []) as Service[]}
-      testimonials={(testimonials ?? []) as Testimonial[]}
     />
   );
 }

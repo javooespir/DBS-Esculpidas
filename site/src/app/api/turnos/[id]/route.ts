@@ -84,6 +84,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const update: Record<string, unknown> = {};
   if (body.status && ["pending", "deposit_paid", "completed", "no_show"].includes(body.status)) {
     update.status = body.status;
+    // Si estamos restaurando desde cancelado, limpiar campos de cancelación
+    update.cancelled_at = null;
+    update.cancelled_by = null;
+    update.cancellation_reason = null;
   }
   if (body.scheduled_at) update.scheduled_at = body.scheduled_at;
   if (body.notes !== undefined) update.notes = body.notes ? String(body.notes).slice(0, 500) : null;

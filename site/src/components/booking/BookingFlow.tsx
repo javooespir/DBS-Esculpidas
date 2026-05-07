@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, ArrowLeft, Check, Loader2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, Loader2, Search, X } from "lucide-react";
 import type { Service } from "@/lib/types";
 import { BOOKING_RULES, whatsappLink } from "@/lib/constants";
+
+const TZ = "America/Argentina/Buenos_Aires";
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
@@ -11,10 +13,23 @@ const fmtMoney = (n: number) =>
 const fmtDuration = (m: number) =>
   m < 60 ? `${m} min` : m % 60 === 0 ? `${m / 60} h` : `${Math.floor(m / 60)} h ${m % 60} min`;
 
-type Step = "service" | "date" | "time" | "details" | "done";
-
 const fmtDate = (d: Date) =>
-  d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+  d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: TZ });
+
+const fmtTime = (d: Date) =>
+  d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ });
+
+type Step = "service" | "date" | "time" | "details" | "done";
+type Mode = "new" | "lookup";
+
+type LookupAppointment = {
+  id: string;
+  scheduled_at: string;
+  duration_minutes: number;
+  status: string;
+  client_name: string;
+  services: { name: string } | null;
+};
 
 export function BookingFlow({
   services,
@@ -23,10 +38,165 @@ export function BookingFlow({
   services: Service[];
   preselectedSlug?: string;
 }) {
-  const [step, setStep] = useState<Step>("service");
-  const [service, setService] = useState<Service | null>(
-    preselectedSlug ? services.find((s) => s.slug === preselectedSlug) ?? null : null
+  const [mode, setMode] = useState<Mode>("new");
+
+  return (
+    <div>
+      <div className="flex gap-1 bg-white rounded-full border border-[var(--color-line)] p-1 mb-8 max-w-md">
+        <button
+          onClick={() => setMode("new")}
+          className={`flex-1 px-4 py-2 text-sm rounded-full transition-colors ${
+            mode === "new" ? "bg-[var(--color-ink)] text-white" : "text-[var(--color-muted)]"
+          }`}
+        >
+          Nueva reserva
+        </button>
+        <button
+          onClick={() => setMode("lookup")}
+          className={`flex-1 px-4 py-2 text-sm rounded-full transition-colors ${
+            mode === "lookup" ? "bg-[var(--color-ink)] text-white" : "text-[var(--color-muted)]"
+          }`}
+        >
+          Ya tengo turno
+        </button>
+      </div>
+
+      {mode === "new" ? (
+        <NewBooking services={services} preselectedSlug={preselectedSlug} />
+      ) : (
+        <LookupBooking />
+      )}
+    </div>
   );
+}
+
+// =====================================================================
+// LOOKUP — buscar turnos existentes y cancelar
+// =====================================================================
+function LookupBooking() {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [results, setResults] = useState<LookupAppointment[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const search = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/turnos/lookup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error");
+      setResults(data.appointments ?? []);
+      setSearched(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancel = async (id: string) => {
+    if (!confirm("¿Seguro que querés cancelar este turno? Recordá: con menos de 48hs no hay devolución de seña, con menos de 24hs no se puede cancelar online.")) return;
+    setCancellingId(id);
+    try {
+      const res = await fetch(`/api/turnos/${id}`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ client_email: email.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo cancelar");
+      setResults((r) => r.filter((a) => a.id !== id));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Error");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  return (
+    <div className="max-w-xl">
+      <form onSubmit={search} className="card mb-6">
+        <label htmlFor="lookup-email" className="label">Email con el que reservaste</label>
+        <div className="flex gap-2">
+          <input
+            id="lookup-email"
+            type="email"
+            required
+            className="input flex-1"
+            placeholder="tu@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <button type="submit" disabled={loading} className="btn-primary">
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+          </button>
+        </div>
+        {error && <p className="text-sm text-[var(--color-danger)] mt-2">{error}</p>}
+      </form>
+
+      {searched && results.length === 0 && (
+        <p className="text-[var(--color-muted)] text-center py-8">No encontramos turnos activos con ese email.</p>
+      )}
+
+      {results.length > 0 && (
+        <ul className="space-y-3">
+          {results.map((a) => (
+            <li key={a.id} className="card">
+              <div className="flex items-start justify-between gap-4 flex-wrap mb-3">
+                <div>
+                  <p className="font-display text-2xl">{a.services?.name ?? "Servicio"}</p>
+                  <p className="text-sm text-[var(--color-muted)]">
+                    {fmtDate(new Date(a.scheduled_at))} a las {fmtTime(new Date(a.scheduled_at))}
+                  </p>
+                </div>
+                <span className={`text-xs px-3 py-1 rounded-full ${
+                  a.status === "deposit_paid" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                }`}>
+                  {a.status === "deposit_paid" ? "Confirmado" : "Pendiente seña"}
+                </span>
+              </div>
+              <button
+                onClick={() => cancel(a.id)}
+                disabled={cancellingId === a.id}
+                className="text-sm text-[var(--color-danger)] hover:underline inline-flex items-center gap-1"
+              >
+                {cancellingId === a.id ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+                Cancelar este turno
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// =====================================================================
+// NEW BOOKING — flujo de reserva
+// =====================================================================
+function NewBooking({
+  services,
+  preselectedSlug,
+}: {
+  services: Service[];
+  preselectedSlug?: string;
+}) {
+  const initialService = preselectedSlug
+    ? services.find((s) => s.slug === preselectedSlug) ?? null
+    : null;
+
+  // Si vino con servicio preseleccionado: arrancar en "date". Si no: en "service".
+  // Solo se evalúa al montar, así no nos envía adelante cuando el usuario hace "back".
+  const [step, setStep] = useState<Step>(initialService ? "date" : "service");
+  const [service, setService] = useState<Service | null>(initialService);
   const [date, setDate] = useState<Date | null>(null);
   const [time, setTime] = useState<Date | null>(null);
   const [slots, setSlots] = useState<{ start: string; available: boolean }[]>([]);
@@ -36,12 +206,7 @@ export function BookingFlow({
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<{ id: string } | null>(null);
 
-  // saltar al paso siguiente si vienen con servicio preseleccionado
-  useEffect(() => {
-    if (preselectedSlug && service && step === "service") setStep("date");
-  }, [preselectedSlug, service, step]);
-
-  // calendario: próximos 30 días excepto domingos
+  // calendario: próximos 30 días, sin domingos (cerrado)
   const dates = useMemo(() => {
     const arr: Date[] = [];
     const today = new Date();
@@ -49,7 +214,6 @@ export function BookingFlow({
     for (let i = 1; i <= BOOKING_RULES.maxDaysAhead; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
-      if (d.getDay() === 0) continue; // sin domingos
       arr.push(d);
     }
     return arr;
@@ -59,7 +223,11 @@ export function BookingFlow({
   useEffect(() => {
     if (!service || !date) return;
     setLoadingSlots(true);
-    const dateStr = date.toISOString().split("T")[0];
+    // dateStr en formato local YYYY-MM-DD (no toISOString que convierte a UTC)
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const dateStr = `${y}-${m}-${d}`;
     fetch(`/api/available-slots?date=${dateStr}&service=${service.id}`)
       .then((r) => r.json())
       .then((data) => setSlots(data.slots ?? []))
@@ -95,11 +263,9 @@ export function BookingFlow({
     }
   };
 
-  // ===== UI =====
-
   if (step === "done" && confirmation && service && time) {
     const wa = whatsappLink(
-      `Hola! Acabo de reservar el turno para ${service.name} el ${fmtDate(time)} a las ${time.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}. Mi nombre es ${form.name}. Quería avisarte que envío la seña.`
+      `Hola! Acabo de reservar el turno para ${service.name} el ${fmtDate(time)} a las ${fmtTime(time)}. Mi nombre es ${form.name}. Quería avisarte que envío la seña.`
     );
     return (
       <div className="card max-w-xl mx-auto text-center py-12">
@@ -108,8 +274,7 @@ export function BookingFlow({
         </div>
         <h2 className="font-display text-3xl mb-4">¡Turno reservado!</h2>
         <p className="text-[var(--color-muted)] mb-2">
-          {service.name} · {fmtDate(time)} a las{" "}
-          {time.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}
+          {service.name} · {fmtDate(time)} a las {fmtTime(time)}
         </p>
         <p className="text-sm text-[var(--color-muted)] mb-8">
           Te enviamos un mail con los detalles. Para confirmar, mandanos la seña de{" "}
@@ -127,7 +292,12 @@ export function BookingFlow({
       {/* Stepper */}
       <ol className="flex items-center gap-2 mb-10 text-xs text-[var(--color-muted)] flex-wrap">
         {(["service", "date", "time", "details"] as const).map((s, i) => {
-          const labels: Record<"service" | "date" | "time" | "details", string> = { service: "Servicio", date: "Fecha", time: "Hora", details: "Datos" };
+          const labels: Record<"service" | "date" | "time" | "details", string> = {
+            service: "Servicio",
+            date: "Fecha",
+            time: "Hora",
+            details: "Datos",
+          };
           const idx = ["service", "date", "time", "details"].indexOf(step);
           const active = i === idx;
           const done = i < idx;
@@ -157,7 +327,6 @@ export function BookingFlow({
         </div>
       )}
 
-      {/* PASO 1: Servicio */}
       {step === "service" && (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {services.map((s) => (
@@ -185,7 +354,6 @@ export function BookingFlow({
         </div>
       )}
 
-      {/* PASO 2: Fecha */}
       {step === "date" && service && (
         <>
           <div className="mb-4 flex items-center justify-between">
@@ -196,39 +364,10 @@ export function BookingFlow({
               {service.name} · {fmtMoney(service.price_ars)}
             </span>
           </div>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-            {dates.map((d) => {
-              const selected = date && d.toDateString() === date.toDateString();
-              return (
-                <button
-                  key={d.toISOString()}
-                  type="button"
-                  onClick={() => {
-                    setDate(d);
-                    setTime(null);
-                    setStep("time");
-                  }}
-                  className={`p-3 rounded-lg border text-center transition-all min-h-[64px] ${
-                    selected
-                      ? "border-[var(--color-rose-deep)] bg-[var(--color-rose-soft)]"
-                      : "border-[var(--color-line)] hover:border-[var(--color-rose)]"
-                  }`}
-                >
-                  <div className="text-[10px] uppercase tracking-wider text-[var(--color-muted)]">
-                    {d.toLocaleDateString("es-AR", { weekday: "short" })}
-                  </div>
-                  <div className="text-xl font-display">{d.getDate()}</div>
-                  <div className="text-[10px] text-[var(--color-muted)]">
-                    {d.toLocaleDateString("es-AR", { month: "short" })}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          <CalendarGrid dates={dates} selected={date} onSelect={(d) => { setDate(d); setTime(null); setStep("time"); }} />
         </>
       )}
 
-      {/* PASO 3: Hora */}
       {step === "time" && service && date && (
         <>
           <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
@@ -247,7 +386,7 @@ export function BookingFlow({
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
               {slots.map((slot) => {
                 const t = new Date(slot.start);
-                const label = t.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
+                const label = fmtTime(t);
                 return (
                   <button
                     key={slot.start}
@@ -272,7 +411,6 @@ export function BookingFlow({
         </>
       )}
 
-      {/* PASO 4: Datos */}
       {step === "details" && service && time && (
         <form
           onSubmit={(e) => {
@@ -285,9 +423,7 @@ export function BookingFlow({
             <p className="text-sm text-[var(--color-muted)] mb-1">Estás reservando:</p>
             <p className="font-display text-2xl">{service.name}</p>
             <p className="text-sm">
-              {fmtDate(time)} a las{" "}
-              {time.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })} ·{" "}
-              {fmtMoney(service.price_ars)} (seña {fmtMoney(service.deposit_ars)})
+              {fmtDate(time)} a las {fmtTime(time)} · {fmtMoney(service.price_ars)} (seña {fmtMoney(service.deposit_ars)})
             </p>
           </div>
 
@@ -323,5 +459,61 @@ export function BookingFlow({
         </form>
       )}
     </div>
+  );
+}
+
+// =====================================================================
+// CalendarGrid — grilla Lun–Dom con celdas vacías para mantener orden
+// =====================================================================
+const WEEKDAYS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
+
+function CalendarGrid({ dates, selected, onSelect }: {
+  dates: Date[];
+  selected: Date | null;
+  onSelect: (d: Date) => void;
+}) {
+  // Posición Lun=0..Dom=6 desde getDay (que devuelve Dom=0..Sáb=6)
+  const dowIndex = (d: Date) => (d.getDay() + 6) % 7;
+
+  // Padding inicial para que la primera fecha caiga en su columna correcta
+  const padBefore = dates.length > 0 ? dowIndex(dates[0]) : 0;
+
+  return (
+    <>
+      <div className="grid grid-cols-7 gap-1.5 md:gap-2 mb-2 text-[10px] uppercase tracking-wider text-[var(--color-muted)] text-center">
+        {WEEKDAYS.map((w) => (
+          <div key={w} className="py-1">{w}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1.5 md:gap-2">
+        {Array.from({ length: padBefore }).map((_, i) => (
+          <div key={`pad-${i}`} />
+        ))}
+        {dates.map((d) => {
+          const isSunday = d.getDay() === 0;
+          const isSelected = selected && d.toDateString() === selected.toDateString();
+          return (
+            <button
+              key={d.toISOString()}
+              type="button"
+              disabled={isSunday}
+              onClick={() => !isSunday && onSelect(d)}
+              className={`aspect-square sm:aspect-auto sm:py-3 px-1 rounded-lg border text-center transition-all flex flex-col items-center justify-center min-h-[60px] ${
+                isSunday
+                  ? "border-transparent text-[var(--color-line)] cursor-not-allowed"
+                  : isSelected
+                  ? "border-[var(--color-rose-deep)] bg-[var(--color-rose)] text-white shadow-[0_4px_12px_rgba(168,95,127,0.25)]"
+                  : "border-[var(--color-line)] hover:border-[var(--color-rose-deep)] hover:bg-[var(--color-rose-soft)]"
+              }`}
+            >
+              <span className="text-xl md:text-2xl font-display leading-none">{d.getDate()}</span>
+              <span className="text-[9px] md:text-[10px] uppercase mt-0.5 opacity-70">
+                {d.toLocaleDateString("es-AR", { month: "short" })}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }

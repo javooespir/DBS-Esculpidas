@@ -4,10 +4,64 @@ import { getSessionFromCookies } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function PATCH(req: Request) {
-  if (!(await getSessionFromCookies())) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+const guard = async () => {
+  const ok = await getSessionFromCookies();
+  return ok ? null : NextResponse.json({ error: "No autorizado" }, { status: 401 });
+};
+
+const slugify = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+
+export async function POST(req: Request) {
+  const blocked = await guard();
+  if (blocked) return blocked;
+  const body = await req.json().catch(() => ({}));
+  const name = String(body.name ?? "").trim().slice(0, 100);
+  const description = body.description ? String(body.description).slice(0, 500) : null;
+  const price_ars = Math.max(0, Math.floor(Number(body.price_ars ?? 0)));
+  const duration_minutes = Math.max(15, Math.floor(Number(body.duration_minutes ?? 60)));
+  const deposit_ars = Math.max(0, Math.floor(Number(body.deposit_ars ?? 10000)));
+  if (!name) return NextResponse.json({ error: "Nombre requerido" }, { status: 400 });
+
+  const baseSlug = slugify(name) || `serv-${Date.now()}`;
+  let slug = baseSlug;
+  // Si ya existe, agregar sufijo numérico
+  for (let i = 2; i < 100; i++) {
+    const { data: existing } = await supabaseAdmin.from("services").select("id").eq("slug", slug).maybeSingle();
+    if (!existing) break;
+    slug = `${baseSlug}-${i}`;
   }
+
+  const { data: maxOrder } = await supabaseAdmin
+    .from("services")
+    .select("display_order")
+    .order("display_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { error } = await supabaseAdmin.from("services").insert({
+    slug,
+    name,
+    description,
+    price_ars,
+    duration_minutes,
+    deposit_ars,
+    display_order: (maxOrder?.display_order ?? 0) + 1,
+    active: true,
+  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
+export async function PATCH(req: Request) {
+  const blocked = await guard();
+  if (blocked) return blocked;
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
 
@@ -25,6 +79,18 @@ export async function PATCH(req: Request) {
   }
 
   const { error } = await supabaseAdmin.from("services").update(update).eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(req: Request) {
+  const blocked = await guard();
+  if (blocked) return blocked;
+  const id = new URL(req.url).searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
+
+  // Soft delete: marcar inactivo (no romper turnos históricos que referencian este servicio)
+  const { error } = await supabaseAdmin.from("services").update({ active: false }).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

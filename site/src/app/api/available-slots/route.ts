@@ -13,9 +13,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing params" }, { status: 400 });
   }
 
-  // Parse date as local
+  // Parse date as UTC (representando 00:00 del día en ART)
   const [y, m, d] = dateStr.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
+  const date = new Date(Date.UTC(y, m - 1, d));
 
   // Service para obtener duración
   const { data: service, error: svcErr } = await supabaseAdmin

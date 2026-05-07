@@ -6,19 +6,17 @@ import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { BUSINESS, instagramLink, whatsappLink } from "@/lib/constants";
-import type { Service, Testimonial } from "@/lib/types";
+import type { Service } from "@/lib/types";
 
 export const revalidate = 60;
 
 async function getData() {
-  const [{ data: services }, { data: testimonials }, { data: aboutSetting }] = await Promise.all([
+  const [{ data: services }, { data: aboutSetting }] = await Promise.all([
     supabaseAdmin.from("services").select("*").eq("active", true).order("display_order"),
-    supabaseAdmin.from("testimonials").select("*").eq("visible", true).order("display_order"),
     supabaseAdmin.from("settings").select("value").eq("key", "about_text").maybeSingle(),
   ]);
   return {
     services: (services ?? []) as Service[],
-    testimonials: (testimonials ?? []) as Testimonial[],
     aboutText:
       (aboutSetting?.value as string | undefined) ??
       "En DBS Esculpidas creemos que cuidarte es un acto de amor propio.",
@@ -36,7 +34,7 @@ const fmtDuration = (minutes: number) => {
 };
 
 export default async function HomePage() {
-  const { services, testimonials, aboutText } = await getData();
+  const { services, aboutText } = await getData();
   const galleryImages = Array.from({ length: 11 }, (_, i) => `/images/nail-${i + 2}.jpg`);
 
   return (
@@ -170,28 +168,6 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
-
-        {/* TESTIMONIOS */}
-        {testimonials.length > 0 && (
-          <section id="testimonios" className="section bg-[var(--color-ink)] text-white">
-            <div className="container-page">
-              <div className="max-w-2xl mb-16">
-                <p className="eyebrow mb-4" style={{ color: "var(--color-rose)" }}>Testimonios</p>
-                <h2 className="font-display text-4xl md:text-6xl leading-tight font-medium">
-                  Lo que dicen las clientas.
-                </h2>
-              </div>
-              <div className="grid md:grid-cols-3 gap-8">
-                {testimonials.map((t) => (
-                  <blockquote key={t.id} className="border-l-2 pl-6" style={{ borderColor: "var(--color-rose)" }}>
-                    <p className="font-display text-2xl leading-relaxed mb-6">&ldquo;{t.text}&rdquo;</p>
-                    <footer className="text-sm text-white/60">— {t.client_name}</footer>
-                  </blockquote>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
 
         {/* CTA FINAL */}
         <section className="section bg-[var(--color-rose-soft)]">

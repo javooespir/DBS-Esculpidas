@@ -34,7 +34,6 @@ export function Nav() {
     { href: "/#servicios", label: "Servicios" },
     { href: "/#galeria", label: "Galería" },
     { href: "/#sobre-nosotros", label: "Sobre nosotros" },
-    { href: "/#testimonios", label: "Testimonios" },
   ];
 
   return (
