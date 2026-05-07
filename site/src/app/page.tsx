@@ -4,6 +4,7 @@ import { ArrowRight, Sparkles, Heart, Shield, MapPin, Clock, MessageCircle } fro
 import { Instagram } from "@/components/icons/Instagram";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
+import { GalleryCarousel } from "@/components/site/GalleryCarousel";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { BUSINESS, instagramLink, whatsappLink } from "@/lib/constants";
 import type { Service } from "@/lib/types";
@@ -151,24 +152,7 @@ export default async function HomePage() {
               <p className="eyebrow mb-4">Galería</p>
               <h2 className="font-display text-4xl md:text-6xl leading-tight font-medium">Trabajos reales.</h2>
             </div>
-            {/* Masonry via CSS columns — sin JS, sin huecos */}
-            <div className="[column-count:2] sm:[column-count:3] lg:[column-count:4] [column-gap:12px] md:[column-gap:16px]">
-              {galleryImages.map((src, i) => (
-                <div
-                  key={src}
-                  className="break-inside-avoid mb-3 md:mb-4 relative overflow-hidden rounded-xl group"
-                >
-                  <Image
-                    src={src}
-                    alt={`Trabajo de uñas ${i + 1}`}
-                    width={600}
-                    height={i % 3 === 0 ? 800 : 600}
-                    className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
-                    sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-                  />
-                </div>
-              ))}
-            </div>
+            <GalleryCarousel images={galleryImages} />
           </div>
         </section>
 
