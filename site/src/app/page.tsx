@@ -106,9 +106,12 @@ export default async function HomePage() {
                 </article>
               ))}
             </div>
-            <p className="mt-12 text-sm text-[var(--color-muted)]">
-              Mantenimientos disponibles cada 15 a 21 días para todos los servicios.
-            </p>
+            <div className="mt-12 inline-flex items-center gap-3 border border-[var(--color-rose)] bg-[var(--color-rose-soft)] rounded-full px-5 py-3">
+              <Sparkles size={16} style={{ color: "var(--color-rose-deep)" }} className="flex-shrink-0" />
+              <p className="text-sm font-medium" style={{ color: "var(--color-rose-deep)" }}>
+                Mantenimientos disponibles cada 15 a 21 días para todos los servicios
+              </p>
+            </div>
           </div>
         </section>
 
@@ -148,20 +151,20 @@ export default async function HomePage() {
               <p className="eyebrow mb-4">Galería</p>
               <h2 className="font-display text-4xl md:text-6xl leading-tight font-medium">Trabajos reales.</h2>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+            {/* Masonry via CSS columns — sin JS, sin huecos */}
+            <div className="[column-count:2] sm:[column-count:3] lg:[column-count:4] [column-gap:12px] md:[column-gap:16px]">
               {galleryImages.map((src, i) => (
                 <div
                   key={src}
-                  className={`relative overflow-hidden rounded-lg ${
-                    i === 0 || i === 5 ? "row-span-2 aspect-[3/4]" : "aspect-square"
-                  }`}
+                  className="break-inside-avoid mb-3 md:mb-4 relative overflow-hidden rounded-xl group"
                 >
                   <Image
                     src={src}
-                    alt={`Trabajo ${i + 1}`}
-                    fill
-                    className="object-cover hover:scale-105 transition-transform duration-700"
-                    sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
+                    alt={`Trabajo de uñas ${i + 1}`}
+                    width={600}
+                    height={i % 3 === 0 ? 800 : 600}
+                    className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
+                    sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
                   />
                 </div>
               ))}
