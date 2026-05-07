@@ -120,7 +120,7 @@ export default async function HomePage() {
         <section id="sobre-nosotros" className="section bg-[var(--color-rose-mist)]">
           <div className="container-page grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div className="relative aspect-[4/5] rounded-2xl overflow-hidden">
-              <Image src="/images/nail-5.jpg" alt="Estudio DBS Esculpidas" fill className="object-cover" sizes="(min-width: 1024px) 50vw, 100vw" />
+              <Image src="/images/nail-1.jpg" alt="Local DBS Esculpidas" fill className="object-cover" sizes="(min-width: 1024px) 50vw, 100vw" />
             </div>
             <div>
               <p className="eyebrow mb-4">Sobre nosotros</p>

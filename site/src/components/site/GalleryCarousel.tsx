@@ -5,7 +5,6 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const AUTOPLAY_MS = 3500;
-// Slides visibles según breakpoint (se mantiene sincronizado con CSS)
 const VISIBLE = { base: 2, sm: 3, lg: 4 };
 
 function useVisibleSlides() {
@@ -30,12 +29,25 @@ export function GalleryCarousel({ images }: { images: string[] }) {
   const visibleSlides = useVisibleSlides();
   const total = images.length;
 
+  // Máximo índice posible: nunca mostrar slots vacíos al final
+  const maxIndex = Math.max(0, total - visibleSlides);
+
   const goTo = useCallback(
-    (idx: number) => setCurrent(((idx % total) + total) % total),
-    [total]
+    (idx: number) => {
+      // Wrap circular, pero clampeado a maxIndex
+      const wrapped = ((idx % (maxIndex + 1)) + (maxIndex + 1)) % (maxIndex + 1);
+      setCurrent(wrapped);
+    },
+    [maxIndex]
   );
+
   const next = useCallback(() => goTo(current + 1), [current, goTo]);
   const prev = useCallback(() => goTo(current - 1), [current, goTo]);
+
+  // Si cambia visibleSlides y el current queda fuera de rango, lo corregimos
+  useEffect(() => {
+    setCurrent((c) => Math.min(c, maxIndex));
+  }, [maxIndex]);
 
   const resetTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -47,25 +59,28 @@ export function GalleryCarousel({ images }: { images: string[] }) {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [resetTimer]);
 
-  const nav = (fn: () => void) => { fn(); resetTimer(); };
+  const nav = useCallback((fn: () => void) => { fn(); resetTimer(); }, [resetTimer]);
 
   // Swipe / drag
   const onPointerDown = (e: React.PointerEvent) => { dragStart.current = e.clientX; };
-  const onPointerUp = (e: React.PointerEvent) => {
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
     if (dragStart.current === null) return;
     const delta = dragStart.current - e.clientX;
     if (Math.abs(delta) > 40) nav(delta > 0 ? next : prev);
     dragStart.current = null;
-  };
+  }, [nav, next, prev]);
 
   const slideWidth = `${100 / visibleSlides}%`;
   const offset = `calc(-${current} * ${slideWidth})`;
 
+  // Dots: uno por cada posición válida (maxIndex + 1)
+  const dotCount = maxIndex + 1;
+
   return (
     <div className="relative select-none">
-      {/* Overflow wrapper */}
+      {/* Track */}
       <div
-        className="overflow-hidden rounded-2xl cursor-grab active:cursor-grabbing"
+        className="overflow-hidden cursor-grab active:cursor-grabbing"
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
@@ -101,8 +116,9 @@ export function GalleryCarousel({ images }: { images: string[] }) {
       {/* Botón anterior */}
       <button
         onClick={() => nav(prev)}
+        disabled={current === 0}
         aria-label="Anterior"
-        className="absolute left-0 top-[calc(50%-20px)] -translate-x-4 z-10 w-10 h-10 rounded-full bg-white shadow-md border border-[var(--color-line)] flex items-center justify-center hover:bg-[var(--color-rose-soft)] transition-colors"
+        className="absolute left-0 top-[calc(50%-20px)] -translate-x-4 z-10 w-10 h-10 rounded-full bg-white shadow-md border border-[var(--color-line)] flex items-center justify-center hover:bg-[var(--color-rose-soft)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <ChevronLeft size={20} />
       </button>
@@ -110,20 +126,21 @@ export function GalleryCarousel({ images }: { images: string[] }) {
       {/* Botón siguiente */}
       <button
         onClick={() => nav(next)}
+        disabled={current === maxIndex}
         aria-label="Siguiente"
-        className="absolute right-0 top-[calc(50%-20px)] translate-x-4 z-10 w-10 h-10 rounded-full bg-white shadow-md border border-[var(--color-line)] flex items-center justify-center hover:bg-[var(--color-rose-soft)] transition-colors"
+        className="absolute right-0 top-[calc(50%-20px)] translate-x-4 z-10 w-10 h-10 rounded-full bg-white shadow-md border border-[var(--color-line)] flex items-center justify-center hover:bg-[var(--color-rose-soft)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <ChevronRight size={20} />
       </button>
 
-      {/* Dots */}
-      <div className="flex justify-center gap-2 mt-6" role="tablist" aria-label="Imágenes de galería">
-        {images.map((_, i) => (
+      {/* Dots — uno por posición, no por imagen */}
+      <div className="flex justify-center gap-2 mt-6" role="tablist" aria-label="Posiciones del carrusel">
+        {Array.from({ length: dotCount }).map((_, i) => (
           <button
             key={i}
             role="tab"
             aria-selected={i === current}
-            aria-label={`Imagen ${i + 1}`}
+            aria-label={`Posición ${i + 1}`}
             onClick={() => nav(() => goTo(i))}
             className={`rounded-full transition-all duration-300 ${
               i === current
