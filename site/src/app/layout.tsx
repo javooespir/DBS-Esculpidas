@@ -1,59 +1,45 @@
 import type { Metadata } from "next";
-import { Playfair_Display, DM_Sans } from "next/font/google";
+import { Cormorant, Montserrat } from "next/font/google";
 import "./globals.css";
+import { BUSINESS } from "@/lib/constants";
 
-const playfair = Playfair_Display({
+const cormorant = Cormorant({
   subsets: ["latin"],
-  variable: "--font-heading",
-  display: "swap",
   weight: ["400", "500", "600", "700"],
+  variable: "--font-display",
+  display: "swap",
 });
 
-const dmSans = DM_Sans({
+const montserrat = Montserrat({
   subsets: ["latin"],
-  variable: "--font-body",
-  display: "swap",
   weight: ["300", "400", "500", "600"],
+  variable: "--font-sans",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "DBS Esculpidas | Nail Studio en Ituzaingó",
-  description:
-    "Uñas esculpidas, nail art y manicura profesional en Ituzaingó, Buenos Aires. Turnos disponibles — seguinos en Instagram para ver los últimos diseños.",
-  keywords: ["uñas esculpidas", "nail art", "manicura", "Ituzaingó", "Buenos Aires", "nail studio"],
-  icons: {
-    icon: "/logo.png",
+  metadataBase: new URL(BUSINESS.siteUrl),
+  title: {
+    default: `${BUSINESS.name} — ${BUSINESS.tagline}`,
+    template: `%s · ${BUSINESS.name}`,
   },
+  description: `Estudio de uñas premium en Ituzaingó. Esculpidas, capping, semipermanente y belleza de manos. Reservá tu turno online.`,
+  keywords: ["uñas", "esculpidas", "manicura", "Ituzaingó", "semipermanente", "DBS"],
   openGraph: {
-    title: "DBS Esculpidas | Nail Studio",
-    description: "Uñas que hablan por vos. Ituzaingó, Buenos Aires.",
-    type: "website",
+    title: `${BUSINESS.name}`,
+    description: BUSINESS.tagline,
     locale: "es_AR",
-    url: "https://dbsesculpidas.encende.click",
-    images: [
-      {
-        url: "/logo.png",
-        width: 1200,
-        height: 1200,
-        alt: "DBS Esculpidas Logo",
-      },
-    ],
+    type: "website",
+    siteName: BUSINESS.name,
   },
+  robots: { index: true, follow: true },
+  alternates: { canonical: "/" },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="es"
-      className={`${playfair.variable} ${dmSans.variable}`}
-    >
-      <body className="min-h-dvh flex flex-col antialiased">
-        {children}
-      </body>
+    <html lang="es" className={`${cormorant.variable} ${montserrat.variable}`}>
+      <body>{children}</body>
     </html>
   );
 }
