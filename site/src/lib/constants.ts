@@ -46,15 +46,46 @@ export const BUSINESS_HOURS: Record<DayOfWeek, { open: string; close: string } |
 };
 
 /**
- * Bloqueos recurrentes fijos por día de semana.
- * El cliente dijo:
+ * Bloqueos recurrentes fijos por día de semana (todas las semanas).
  *   Lunes y Miércoles 11:00-13:00
- *   Viernes cada 15 días 11:00-13:00 (los viernes especiales el admin agrega bloqueo manual)
  */
 export const RECURRING_BLOCKS: { day: DayOfWeek; from: string; to: string }[] = [
   { day: 1, from: "11:00", to: "13:00" }, // Lunes
   { day: 3, from: "11:00", to: "13:00" }, // Miércoles
 ];
+
+/**
+ * Bloqueos en viernes alternados (cada 2 semanas).
+ * FRIDAY_BLOCK_ANCHOR: el primer viernes bloqueado (formato YYYY-MM-DD).
+ * A partir de esa fecha: ese viernes sí, el siguiente no, el subsiguiente sí, etc.
+ *
+ * En esos viernes se bloquea: 11-13 y desde las 17 hasta el cierre (17-18).
+ *
+ * Para cambiar qué viernes son los "bloqueados", solo cambiá esta fecha por
+ * cualquier viernes que SÍ deba estar bloqueado y la lógica recalcula sola.
+ */
+export const FRIDAY_BLOCK_ANCHOR = "2026-05-08"; // primer viernes bloqueado
+export const ALTERNATING_FRIDAY_BLOCKS = [
+  { from: "11:00", to: "13:00" },
+  { from: "17:00", to: "18:00" },
+];
+
+/**
+ * ¿Aplica el bloqueo de viernes a esta fecha?
+ * @param date una fecha cualquiera
+ * @returns true si es viernes Y cae en el patrón alternado.
+ */
+export function isAlternatingBlockedFriday(date: Date): boolean {
+  if (date.getDay() !== 5) return false;
+  const [ay, am, ad] = FRIDAY_BLOCK_ANCHOR.split("-").map(Number);
+  const anchor = new Date(ay, am - 1, ad);
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  anchor.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((target.getTime() - anchor.getTime()) / 86400000);
+  // múltiplo de 14 días → mismo "tipo" de viernes que el anchor
+  return diffDays % 14 === 0;
+}
 
 export const BOOKING_RULES = {
   /** Anticipación mínima para reservar (horas) */

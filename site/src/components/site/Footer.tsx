@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { MessageCircle, Mail, MapPin } from "lucide-react";
 import { Instagram } from "@/components/icons/Instagram";
 import { BUSINESS, instagramLink, whatsappLink } from "@/lib/constants";
@@ -9,7 +10,12 @@ export function Footer() {
       <div className="container-page section">
         <div className="grid md:grid-cols-3 gap-12">
           <div>
-            <h3 className="font-display text-3xl mb-4">{BUSINESS.name}</h3>
+            <div className="flex items-center gap-3 mb-4">
+              <span className="relative w-12 h-12 rounded-full overflow-hidden bg-white">
+                <Image src="/images/logo.png" alt="" fill sizes="48px" className="object-cover" />
+              </span>
+              <h3 className="font-display text-3xl">{BUSINESS.name}</h3>
+            </div>
             <p className="text-sm text-white/70 leading-relaxed max-w-sm">
               {BUSINESS.tagline}. Estudio de uñas en Ituzaingó.
             </p>

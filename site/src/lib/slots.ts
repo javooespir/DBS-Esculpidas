@@ -14,6 +14,8 @@
 import {
   BUSINESS_HOURS,
   RECURRING_BLOCKS,
+  ALTERNATING_FRIDAY_BLOCKS,
+  isAlternatingBlockedFriday,
   BOOKING_RULES,
   type DayOfWeek,
 } from "./constants";
@@ -82,6 +84,13 @@ export function computeAvailableSlots(
     start: parseTime(b.from, date),
     end: parseTime(b.to, date),
   }));
+
+  // Viernes alternados (cada 2 semanas): añade bloqueos extra
+  if (isAlternatingBlockedFriday(date)) {
+    for (const b of ALTERNATING_FRIDAY_BLOCKS) {
+      recurringRanges.push({ start: parseTime(b.from, date), end: parseTime(b.to, date) });
+    }
+  }
 
   // Bloqueos manuales
   const manualRanges = blocks.map((b) => ({
