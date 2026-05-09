@@ -4,7 +4,9 @@ import { ArrowRight, Sparkles, Heart, Shield, MapPin, Clock, MessageCircle } fro
 import { Instagram } from "@/components/icons/Instagram";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
-import { GalleryCarousel } from "@/components/site/GalleryCarousel";
+import { HeroAnimated } from "@/components/site/HeroAnimated";
+import { ServicesAnimated } from "@/components/site/ServicesAnimated";
+import { GalleryAnimated } from "@/components/site/GalleryAnimated";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { BUSINESS, instagramLink, whatsappLink } from "@/lib/constants";
 import type { Service } from "@/lib/types";
@@ -24,15 +26,6 @@ async function getData() {
   };
 }
 
-const fmtMoney = (n: number) =>
-  new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
-
-const fmtDuration = (minutes: number) => {
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m === 0 ? `${h} h` : `${h} h ${m} min`;
-};
 
 export default async function HomePage() {
   const { services, aboutText } = await getData();
@@ -42,79 +35,22 @@ export default async function HomePage() {
     <>
       <Nav />
       <main>
-        {/* HERO */}
-        <section className="relative min-h-[100dvh] flex items-end overflow-hidden bg-[var(--color-ink)]">
-          <div className="absolute inset-0 z-0">
-            <Image
-              src="/images/nail-2.jpg"
-              alt=""
-              fill
-              priority
-              className="object-cover opacity-60"
-              sizes="100vw"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/20" />
-          </div>
-          <div className="container-page relative z-10 px-6 md:px-12 pb-20 pt-32 md:pb-32 text-white">
-            <p className="eyebrow text-[var(--color-rose)] mb-6">Estudio de uñas · Ituzaingó</p>
-            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl leading-[0.95] max-w-4xl mb-8 font-medium">
-              Resaltando tu belleza<br />
-              <em className="not-italic" style={{ color: "var(--color-rose)" }}>de pies a cabeza.</em>
-            </h1>
-            <p className="text-base md:text-lg max-w-xl text-white/80 mb-10 leading-relaxed">
-              Un espacio íntimo donde la higiene, los detalles y el tiempo dedicado a vos no se negocian. Reservá tu turno online en menos de un minuto.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link href="/turnos" className="btn-primary" style={{ background: "var(--color-rose)" }}>
-                Reservar turno <ArrowRight size={16} />
-              </Link>
-              <a href={whatsappLink()} target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{ borderColor: "white", color: "white" }}>
-                Consultar
-              </a>
-            </div>
-          </div>
-        </section>
+        {/* HERO CON ANIMACIONES GSAP */}
+        <HeroAnimated
+          backgroundImage="/images/nail-2.jpg"
+          tagline="Estudio de uñas · Ituzaingó"
+          title="Resaltando tu belleza"
+          titleHighlight="de pies a cabeza."
+          description="Un espacio íntimo donde la higiene, los detalles y el tiempo dedicado a vos no se negocian. Reservá tu turno online en menos de un minuto."
+          buttonText="Reservar turno"
+          buttonLink="/turnos"
+          secondaryButtonText="Consultar"
+          secondaryButtonLink={whatsappLink()}
+          whatsappLink={whatsappLink()}
+        />
 
-        {/* SERVICIOS */}
-        <section id="servicios" className="section bg-[var(--color-bg)]">
-          <div className="container-page">
-            <div className="max-w-2xl mb-16">
-              <p className="eyebrow mb-4">Servicios</p>
-              <h2 className="font-display text-4xl md:text-6xl leading-tight font-medium">
-                Cada técnica, pensada para vos.
-              </h2>
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {services.map((s) => (
-                <article key={s.id} className="card hover:border-[var(--color-rose)] transition-colors group flex flex-col">
-                  <div className="flex items-start justify-between mb-4">
-                    <h3 className="font-display text-2xl leading-tight pr-4">{s.name}</h3>
-                    <span className="text-xs uppercase tracking-wider text-[var(--color-rose-deep)] whitespace-nowrap">
-                      {fmtDuration(s.duration_minutes)}
-                    </span>
-                  </div>
-                  {s.description && <p className="text-sm text-[var(--color-muted)] mb-6 leading-relaxed">{s.description}</p>}
-                  <div className="mt-auto">
-                    <p className="font-display text-3xl mb-1">{fmtMoney(s.price_ars)}</p>
-                    <p className="text-xs text-[var(--color-muted)] mb-5">Seña: {fmtMoney(s.deposit_ars)}</p>
-                    <Link
-                      href={`/turnos?service=${s.slug}`}
-                      className="inline-flex items-center gap-2 text-sm font-medium border-b border-[var(--color-ink)] pb-1 hover:text-[var(--color-rose-deep)] hover:border-[var(--color-rose-deep)] transition-colors"
-                    >
-                      Reservar <ArrowRight size={14} />
-                    </Link>
-                  </div>
-                </article>
-              ))}
-            </div>
-            <div className="mt-12 inline-flex items-center gap-3 border border-[var(--color-rose)] bg-[var(--color-rose-soft)] rounded-full px-5 py-3">
-              <Sparkles size={16} style={{ color: "var(--color-rose-deep)" }} className="flex-shrink-0" />
-              <p className="text-sm font-medium" style={{ color: "var(--color-rose-deep)" }}>
-                Mantenimientos disponibles cada 15 a 21 días para todos los servicios
-              </p>
-            </div>
-          </div>
-        </section>
+        {/* SERVICIOS CON ANIMACIONES SCROLL */}
+        <ServicesAnimated services={services} />
 
         {/* SOBRE NOSOTROS */}
         <section id="sobre-nosotros" className="section bg-[var(--color-rose-mist)]">
@@ -145,16 +81,8 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* GALERIA */}
-        <section id="galeria" className="section bg-[var(--color-bg)]">
-          <div className="container-page">
-            <div className="max-w-2xl mb-16">
-              <p className="eyebrow mb-4">Galería</p>
-              <h2 className="font-display text-4xl md:text-6xl leading-tight font-medium">Trabajos reales.</h2>
-            </div>
-            <GalleryCarousel images={galleryImages} />
-          </div>
-        </section>
+        {/* GALERIA CON ANIMACIONES */}
+        <GalleryAnimated images={galleryImages} />
 
         {/* CTA FINAL */}
         <section className="section bg-[var(--color-rose-soft)]">
