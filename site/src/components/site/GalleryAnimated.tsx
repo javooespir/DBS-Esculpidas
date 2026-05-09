@@ -17,44 +17,41 @@ export function GalleryAnimated({ images }: GalleryAnimatedProps) {
 
   useGSAP(
     () => {
-      // Title animations
-      gsap.from(".gallery-eyebrow, .gallery-title", {
-        opacity: 0,
-        y: 30,
+      const container = containerRef.current;
+      if (!container) return;
+
+      const eyebrow = container.querySelector(".gallery-eyebrow");
+      const title = container.querySelector(".gallery-title");
+      const carousel = container.querySelector(".gallery-carousel-container");
+
+      // Set initial state via JS (not CSS) — garantiza visibilidad si GSAP falla
+      gsap.set([eyebrow, title], { opacity: 0, y: 30 });
+      gsap.set(carousel, { opacity: 0, y: 20 });
+
+      // Título fade-in al scroll
+      gsap.to([eyebrow, title], {
+        opacity: 1,
+        y: 0,
         duration: 0.8,
-        stagger: 0.1,
+        stagger: 0.12,
         ease: "power2.out",
         scrollTrigger: {
-          trigger: containerRef.current,
+          trigger: container,
           start: "top 80%",
           once: true,
         },
       });
 
-      // Carousel container animation
-      gsap.from(".gallery-carousel-container", {
-        opacity: 0,
-        scale: 0.95,
-        y: 40,
-        duration: 0.8,
-        delay: 0.2,
+      // Carousel fade-in al scroll
+      gsap.to(carousel, {
+        opacity: 1,
+        y: 0,
+        duration: 0.9,
         ease: "power2.out",
         scrollTrigger: {
-          trigger: containerRef.current,
+          trigger: container,
           start: "top 70%",
           once: true,
-        },
-      });
-
-      // Parallax effect on carousel images
-      gsap.to(".gallery-carousel-container", {
-        y: -30,
-        scrollTrigger: {
-          trigger: containerRef.current,
-          start: "top center",
-          end: "bottom center",
-          scrub: 1,
-          markers: false,
         },
       });
     },
@@ -74,7 +71,7 @@ export function GalleryAnimated({ images }: GalleryAnimatedProps) {
             Trabajos reales.
           </h2>
         </div>
-        <div className="gallery-carousel-container opacity-0">
+        <div className="gallery-carousel-container">
           <GalleryCarousel images={images} />
         </div>
       </div>
