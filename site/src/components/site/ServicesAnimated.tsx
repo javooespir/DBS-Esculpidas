@@ -33,6 +33,9 @@ export function ServicesAnimated({ services }: ServicesAnimatedProps) {
 
   useGSAP(
     () => {
+      const container = containerRef.current;
+      if (!container) return;
+
       // Title animations
       gsap.from(".services-title, .services-eyebrow", {
         opacity: 0,
@@ -46,6 +49,10 @@ export function ServicesAnimated({ services }: ServicesAnimatedProps) {
           once: true,
         },
       });
+
+      // Set initial state via JS — antes del batch para que empiecen invisibles
+      const cards = container.querySelectorAll(".service-card");
+      gsap.set(cards, { opacity: 0, y: 30 });
 
       // Service cards batch animation (scroll-triggered)
       ScrollTrigger.batch(".service-card", {
@@ -63,25 +70,12 @@ export function ServicesAnimated({ services }: ServicesAnimatedProps) {
       });
 
       // Hover animations for cards
-      gsap.utils.toArray<HTMLElement>(".service-card").forEach((card) => {
+      cards.forEach((card) => {
         card.addEventListener("mouseenter", () => {
-          gsap.to(card, {
-            borderColor: "var(--color-rose)",
-            y: -8,
-            duration: 0.3,
-            ease: "power2.out",
-            overwrite: "auto",
-          });
+          gsap.to(card, { y: -8, duration: 0.3, ease: "power2.out", overwrite: "auto" });
         });
-
         card.addEventListener("mouseleave", () => {
-          gsap.to(card, {
-            borderColor: "var(--color-line)",
-            y: 0,
-            duration: 0.3,
-            ease: "power2.out",
-            overwrite: "auto",
-          });
+          gsap.to(card, { y: 0, duration: 0.3, ease: "power2.out", overwrite: "auto" });
         });
       });
     },
@@ -105,7 +99,7 @@ export function ServicesAnimated({ services }: ServicesAnimatedProps) {
           {services.map((s) => (
             <article
               key={s.id}
-              className="service-card card hover:border-[var(--color-rose)] transition-colors group flex flex-col opacity-0 translate-y-5"
+              className="service-card card hover:border-[var(--color-rose)] transition-colors group flex flex-col"
             >
               <div className="flex items-start justify-between mb-4">
                 <h3 className="font-display text-2xl leading-tight pr-4">

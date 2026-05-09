@@ -1,14 +1,13 @@
 import Image from "next/image";
-import Link from "next/link";
-import { ArrowRight, Sparkles, Heart, Shield, MapPin, Clock, MessageCircle } from "lucide-react";
-import { Instagram } from "@/components/icons/Instagram";
+import { Sparkles, Heart, Shield } from "lucide-react";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
 import { HeroAnimated } from "@/components/site/HeroAnimated";
 import { ServicesAnimated } from "@/components/site/ServicesAnimated";
 import { GalleryAnimated } from "@/components/site/GalleryAnimated";
+import { BookingCTA } from "@/components/site/BookingCTA";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { BUSINESS, instagramLink, whatsappLink } from "@/lib/constants";
+import { whatsappLink } from "@/lib/constants";
 import type { Service } from "@/lib/types";
 
 export const revalidate = 60;
@@ -84,42 +83,8 @@ export default async function HomePage() {
         {/* GALERIA CON ANIMACIONES */}
         <GalleryAnimated images={galleryImages} />
 
-        {/* CTA FINAL */}
-        <section className="section bg-[var(--color-rose-soft)]">
-          <div className="container-page text-center max-w-3xl mx-auto">
-            <h2 className="font-display text-5xl md:text-7xl leading-tight font-medium mb-8">
-              Tu próximo turno te espera.
-            </h2>
-            <p className="text-base md:text-lg text-[var(--color-ink-soft)] mb-10 max-w-xl mx-auto leading-relaxed">
-              Elegí servicio, día y horario. La seña confirma tu reserva.
-            </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <Link href="/turnos" className="btn-primary">Reservar turno <ArrowRight size={16} /></Link>
-              <a href={whatsappLink()} target="_blank" rel="noopener noreferrer" className="btn-secondary">
-                <MessageCircle size={16} /> WhatsApp
-              </a>
-              <a href={instagramLink} target="_blank" rel="noopener noreferrer" className="btn-secondary">
-                <Instagram size={16} /> Instagram
-              </a>
-            </div>
-            <div className="mt-16 grid sm:grid-cols-2 gap-6 text-sm text-left max-w-md mx-auto">
-              <div className="flex items-start gap-3">
-                <MapPin size={20} style={{ color: "var(--color-rose-deep)" }} className="flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium">{BUSINESS.address}</p>
-                  <p className="text-[var(--color-muted)]">Ituzaingó, Buenos Aires</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Clock size={20} style={{ color: "var(--color-rose-deep)" }} className="flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium">Lun a Vie 9 a 18</p>
-                  <p className="text-[var(--color-muted)]">Sábados 9 a 14</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* CTA FINAL CON CALENDARIO */}
+        <BookingCTA />
       </main>
       <Footer />
     </>
