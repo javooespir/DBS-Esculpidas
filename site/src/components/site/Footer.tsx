@@ -48,7 +48,11 @@ export function Footer() {
         </div>
         <div className="mt-16 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-white/50">
           <p>© {new Date().getFullYear()} {BUSINESS.name}. Todos los derechos reservados.</p>
-          <p>Sitio diseñado y desarrollado a medida.</p>
+          <p>Sitio diseñado y desarrollado a medida por{" "}
+            <a href="https://encende.click" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--color-rose)] transition-colors">
+              Encende.click
+            </a>
+          </p>
         </div>
       </div>
     </footer>
