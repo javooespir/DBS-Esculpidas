@@ -36,7 +36,7 @@ export default async function HomePage() {
       <main>
         {/* HERO CON ANIMACIONES GSAP */}
         <HeroAnimated
-          backgroundImage="/images/nail-1.jpg"
+          backgroundImage="/images/nail-7.jpg"
           tagline="Estudio de uñas · Ituzaingó"
           title="Resaltando tu belleza"
           titleHighlight="de pies a cabeza."
