@@ -36,26 +36,28 @@ export function ServicesAnimated({ services }: ServicesAnimatedProps) {
       const container = containerRef.current;
       if (!container) return;
 
-      // Title animations
-      gsap.from(".services-title, .services-eyebrow", {
+      // Title animations — scoped a este container
+      const eyebrow = container.querySelector(".services-eyebrow");
+      const title = container.querySelector(".services-title");
+      gsap.from([eyebrow, title], {
         opacity: 0,
         y: 30,
         duration: 0.8,
         stagger: 0.1,
         ease: "power2.out",
         scrollTrigger: {
-          trigger: containerRef.current,
+          trigger: container,
           start: "top 80%",
           once: true,
         },
       });
 
-      // Set initial state via JS — antes del batch para que empiecen invisibles
-      const cards = container.querySelectorAll(".service-card");
+      // Set initial state via JS — antes del batch
+      const cards = Array.from(container.querySelectorAll(".service-card"));
       gsap.set(cards, { opacity: 0, y: 30 });
 
-      // Service cards batch animation (scroll-triggered)
-      ScrollTrigger.batch(".service-card", {
+      // Cards batch animation — scoped al container
+      ScrollTrigger.batch(cards, {
         onEnter: (batch) =>
           gsap.to(batch, {
             opacity: 1,
@@ -65,7 +67,7 @@ export function ServicesAnimated({ services }: ServicesAnimatedProps) {
             ease: "power2.out",
             overwrite: "auto",
           }),
-        start: "top 80%",
+        start: "top 85%",
         once: true,
       });
 
