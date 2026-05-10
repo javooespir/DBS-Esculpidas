@@ -1,8 +1,9 @@
 import Image from "next/image";
-import { Sparkles, Heart, Shield } from "lucide-react";
+import Link from "next/link";
+import { Sparkles, Heart, Shield, ArrowRight } from "lucide-react";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
-import { HeroAnimated } from "@/components/site/HeroAnimated";
+import { ScrollVideo } from "@/components/site/ScrollVideo";
 import { ServicesAnimated } from "@/components/site/ServicesAnimated";
 import { GalleryAnimated } from "@/components/site/GalleryAnimated";
 import { BookingCTA } from "@/components/site/BookingCTA";
@@ -34,19 +35,42 @@ export default async function HomePage() {
     <>
       <Nav />
       <main>
-        {/* HERO CON ANIMACIONES GSAP */}
-        <HeroAnimated
-          backgroundImage="/images/nail-2.jpg"
-          tagline="Estudio de uñas · Ituzaingó"
-          title="Resaltando tu belleza"
-          titleHighlight="de pies a cabeza."
-          description="Un espacio íntimo donde la higiene, los detalles y el tiempo dedicado a vos no se negocian. Reservá tu turno online en menos de un minuto."
-          buttonText="Reservar turno"
-          buttonLink="/turnos"
-          secondaryButtonText="Consultar"
-          secondaryButtonLink={whatsappLink()}
-          whatsappLink={whatsappLink()}
-        />
+        {/* HERO: VIDEO SCROLL-DRIVEN */}
+        <ScrollVideo>
+          {/* Gradient overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/20 pointer-events-none" />
+          {/* Hero content */}
+          <div className="relative z-10 text-white text-center px-6 max-w-5xl">
+            <p className="eyebrow text-[var(--color-rose)] mb-6">Estudio de uñas · Ituzaingó</p>
+            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl leading-[0.95] font-medium mb-8">
+              Resaltando tu belleza
+              <br />
+              <em className="not-italic" style={{ color: "var(--color-rose)" }}>
+                de pies a cabeza.
+              </em>
+            </h1>
+            <p className="text-base md:text-lg max-w-xl mx-auto text-white/80 mb-10 leading-relaxed">
+              Un espacio íntimo donde la higiene, los detalles y el tiempo dedicado a vos no se negocian. Reservá tu turno online en menos de un minuto.
+            </p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Link href="/turnos" className="btn-primary" style={{ background: "var(--color-rose)" }}>
+                Reservar turno <ArrowRight size={16} />
+              </Link>
+              <a
+                href={whatsappLink()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary"
+                style={{ borderColor: "white", color: "white" }}
+              >
+                Consultar
+              </a>
+            </div>
+          </div>
+        </ScrollVideo>
+
+        {/* Contenido principal — z-index por encima del video sticky */}
+        <div className="relative z-10">
 
         {/* SERVICIOS CON ANIMACIONES SCROLL */}
         <ServicesAnimated services={services} />
@@ -110,6 +134,8 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+
+        </div>{/* /relative z-10 */}
       </main>
       <Footer />
     </>
