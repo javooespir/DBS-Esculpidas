@@ -65,11 +65,12 @@ export function GalleryAnimated({ images }: GalleryAnimatedProps) {
       className="section bg-[var(--color-bg)]"
     >
       <div className="container-page">
-        <div className="max-w-2xl mb-16">
+        <div className="max-w-2xl mb-10">
           <p className="gallery-eyebrow eyebrow mb-4">Galería</p>
           <h2 className="gallery-title font-display text-4xl md:text-6xl leading-tight font-medium">
             Trabajos reales.
           </h2>
+          <div className="mt-6 w-12 h-px bg-[var(--color-rose)]" />
         </div>
         <div className="gallery-carousel-container">
           <GalleryCarousel images={images} />

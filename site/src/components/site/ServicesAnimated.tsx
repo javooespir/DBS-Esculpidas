@@ -91,11 +91,12 @@ export function ServicesAnimated({ services }: ServicesAnimatedProps) {
       className="section bg-[var(--color-bg)]"
     >
       <div className="container-page">
-        <div className="max-w-2xl mb-16">
+        <div className="max-w-2xl mb-14">
           <p className="services-eyebrow eyebrow mb-4">Servicios</p>
           <h2 className="services-title font-display text-4xl md:text-6xl leading-tight font-medium">
             Cada técnica, pensada para vos.
           </h2>
+          <div className="mt-6 w-12 h-px bg-[var(--color-rose)]" />
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {services.map((s) => (
@@ -123,7 +124,7 @@ export function ServicesAnimated({ services }: ServicesAnimatedProps) {
                 </p>
                 <Link
                   href={`/turnos?service=${s.slug}`}
-                  className="inline-flex items-center gap-2 text-sm font-medium border-b border-[var(--color-ink)] pb-1 hover:text-[var(--color-rose-deep)] hover:border-[var(--color-rose-deep)] transition-colors"
+                  className="inline-flex items-center gap-2 text-sm font-medium border-b border-[var(--color-rose)] pb-1 text-[var(--color-rose-deep)] hover:text-[var(--color-rose)] hover:border-[var(--color-rose)] transition-colors"
                 >
                   Reservar <ArrowRight size={14} />
                 </Link>

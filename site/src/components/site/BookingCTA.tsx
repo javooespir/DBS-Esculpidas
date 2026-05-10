@@ -33,7 +33,7 @@ function MiniCalendar() {
   while (cells.length % 7 !== 0) cells.push(null);
 
   return (
-    <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5 shadow-sm">
+    <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5" style={{ boxShadow: "0 4px 24px rgba(201,123,155,0.10), 0 1px 4px rgba(15,15,15,0.06)" }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <span className="font-display text-lg capitalize">{monthName} {year}</span>
@@ -134,9 +134,10 @@ export function BookingCTA() {
           {/* Texto izquierdo */}
           <div className="cta-left">
             <p className="eyebrow mb-4">Reservas</p>
-            <h2 className="font-display text-5xl md:text-6xl leading-tight font-medium mb-6">
+            <h2 className="font-display text-5xl md:text-6xl leading-tight font-medium mb-4">
               Tu próximo turno<br />te espera.
             </h2>
+            <div className="mb-6 w-12 h-px bg-[var(--color-rose-deep)]" />
             <p className="text-base md:text-lg text-[var(--color-ink-soft)] mb-10 leading-relaxed max-w-md">
               Elegí servicio, día y horario. La seña confirma tu reserva. Fácil, rápido, sin llamadas.
             </p>
