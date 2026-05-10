@@ -85,6 +85,31 @@ export default async function HomePage() {
 
         {/* CTA FINAL CON CALENDARIO */}
         <BookingCTA />
+
+        {/* MAPA */}
+        <section className="bg-[var(--color-ink)] py-20 md:py-28">
+          <div className="container-page">
+            <div className="mb-10">
+              <p className="eyebrow text-[var(--color-rose)] mb-4">Dónde encontrarnos</p>
+              <h2 className="font-display text-4xl md:text-5xl text-white font-medium leading-tight">
+                Brandsen 2326,<br />Ituzaingó.
+              </h2>
+              <div className="mt-6 w-12 h-px bg-[var(--color-rose)]" />
+            </div>
+            <div className="rounded-2xl overflow-hidden border border-white/10" style={{ height: "420px" }}>
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3279.2091!2d-58.6901802!3d-34.6410912!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95bcbf2ed84824c5%3A0x4f11f9bd472534e!2sDBS%20Esculpidas!5e0!3m2!1ses!2sar!4v1715000000000!5m2!1ses!2sar"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="DBS Esculpidas — Ubicación en Ituzaingó"
+              />
+            </div>
+          </div>
+        </section>
       </main>
       <Footer />
     </>
