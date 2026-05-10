@@ -26,7 +26,6 @@ async function getData() {
   };
 }
 
-
 export default async function HomePage() {
   const { services, aboutText } = await getData();
   const galleryImages = Array.from({ length: 11 }, (_, i) => `/images/nail-${i + 2}.jpg`);
@@ -34,26 +33,42 @@ export default async function HomePage() {
   return (
     <>
       <Nav />
-      <main>
-        {/* HERO: VIDEO SCROLL-DRIVEN */}
-        <ScrollVideo>
-          {/* Gradient overlay for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/20 pointer-events-none" />
-          {/* Hero content */}
-          <div className="relative z-10 text-white text-center px-6 max-w-5xl">
-            <p className="eyebrow text-[var(--color-rose)] mb-6">Estudio de uñas · Ituzaingó</p>
-            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl leading-[0.95] font-medium mb-8">
+
+      {/* Video fijo detrás de toda la página — scrubea con el scroll completo */}
+      <ScrollVideo />
+
+      {/*
+        main: position relative + z-index 1 → crea stacking context por encima del video.
+        Las secciones transparentes muestran el video; las opacas lo tapan.
+      */}
+      <main className="relative" style={{ zIndex: 1 }}>
+
+        {/* ── HERO ── Transparente: el video se ve debajo ─────────────── */}
+        <section className="relative min-h-screen flex items-end overflow-hidden">
+          {/* Gradient: aclara arriba (video visible) → oscurece abajo (texto legible) */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/55 to-black/88 pointer-events-none" />
+          <div className="container-page relative z-10 px-6 md:px-12 pb-20 pt-32 md:pb-32 text-white">
+            <p className="eyebrow text-[var(--color-rose)] mb-6">
+              Estudio de uñas · Ituzaingó
+            </p>
+            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl leading-[0.95] max-w-4xl font-medium mb-8">
               Resaltando tu belleza
               <br />
               <em className="not-italic" style={{ color: "var(--color-rose)" }}>
                 de pies a cabeza.
               </em>
             </h1>
-            <p className="text-base md:text-lg max-w-xl mx-auto text-white/80 mb-10 leading-relaxed">
-              Un espacio íntimo donde la higiene, los detalles y el tiempo dedicado a vos no se negocian. Reservá tu turno online en menos de un minuto.
+            <p className="text-base md:text-lg max-w-xl text-white/80 mb-10 leading-relaxed">
+              Un espacio íntimo donde la higiene, los detalles y el tiempo
+              dedicado a vos no se negocian. Reservá tu turno online en menos
+              de un minuto.
             </p>
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Link href="/turnos" className="btn-primary" style={{ background: "var(--color-rose)" }}>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/turnos"
+                className="btn-primary"
+                style={{ background: "var(--color-rose)" }}
+              >
                 Reservar turno <ArrowRight size={16} />
               </Link>
               <a
@@ -67,26 +82,37 @@ export default async function HomePage() {
               </a>
             </div>
           </div>
-        </ScrollVideo>
 
-        {/* Contenido principal — z-index por encima del video sticky */}
-        <div className="relative z-10">
+          {/* Scroll indicator */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/40 pointer-events-none">
+            <span className="text-[10px] uppercase tracking-[0.25em] font-sans">Scroll</span>
+            <div className="w-px h-10 bg-gradient-to-b from-white/40 to-transparent animate-pulse" />
+          </div>
+        </section>
 
-        {/* SERVICIOS CON ANIMACIONES SCROLL */}
+        {/* ── SERVICIOS ── Fondo sólido: tapa el video al scrollear ────── */}
         <ServicesAnimated services={services} />
 
-        {/* SOBRE NOSOTROS */}
+        {/* ── SOBRE NOSOTROS ── ─────────────────────────────────────────── */}
         <section id="sobre-nosotros" className="section bg-[var(--color-rose-mist)]">
           <div className="container-page grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div className="relative aspect-[4/5] rounded-2xl overflow-hidden">
-              <Image src="/images/nail-1.jpg" alt="Local DBS Esculpidas" fill className="object-cover" sizes="(min-width: 1024px) 50vw, 100vw" />
+              <Image
+                src="/images/nail-1.jpg"
+                alt="Local DBS Esculpidas"
+                fill
+                className="object-cover"
+                sizes="(min-width: 1024px) 50vw, 100vw"
+              />
             </div>
             <div>
               <p className="eyebrow mb-4">Sobre nosotros</p>
               <h2 className="font-display text-4xl md:text-5xl leading-tight font-medium mb-8">
                 Un ritual de cuidado, no un trámite.
               </h2>
-              <p className="text-base md:text-lg text-[var(--color-ink-soft)] leading-relaxed mb-10">{aboutText}</p>
+              <p className="text-base md:text-lg text-[var(--color-ink-soft)] leading-relaxed mb-10">
+                {aboutText}
+              </p>
               <div className="grid sm:grid-cols-3 gap-6">
                 {[
                   { icon: Shield, title: "Higiene", desc: "Esterilización por turno y materiales descartables." },
@@ -104,13 +130,13 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* GALERIA CON ANIMACIONES */}
+        {/* ── GALERÍA ── ────────────────────────────────────────────────── */}
         <GalleryAnimated images={galleryImages} />
 
-        {/* CTA FINAL CON CALENDARIO */}
+        {/* ── CTA CON CALENDARIO ── ─────────────────────────────────────── */}
         <BookingCTA />
 
-        {/* MAPA */}
+        {/* ── MAPA ── ───────────────────────────────────────────────────── */}
         <section className="bg-[var(--color-ink)] py-20 md:py-28">
           <div className="container-page">
             <div className="mb-10">
@@ -135,8 +161,8 @@ export default async function HomePage() {
           </div>
         </section>
 
-        </div>{/* /relative z-10 */}
       </main>
+
       <Footer />
     </>
   );

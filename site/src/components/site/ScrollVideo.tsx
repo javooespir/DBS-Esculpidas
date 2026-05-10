@@ -6,16 +6,19 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 
-export function ScrollVideo({ children }: { children?: React.ReactNode }) {
-  const containerRef = useRef<HTMLDivElement>(null);
+/**
+ * ScrollVideo — fondo de video fijo que avanza frame a frame con el scroll.
+ * Cubre toda la página detrás del contenido (z-index: 0).
+ * Las secciones con fondo sólido lo tapan naturalmente al scrollear.
+ */
+export function ScrollVideo() {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const video = videoRef.current;
-    const container = containerRef.current;
-    if (!video || !container) return;
+    if (!video) return;
 
-    // Respect prefers-reduced-motion: show first frame only
+    // Respeta prefers-reduced-motion: solo muestra el primer frame
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       video.currentTime = 0;
       return;
@@ -25,11 +28,12 @@ export function ScrollVideo({ children }: { children?: React.ReactNode }) {
 
     const init = () => {
       video.pause();
+      // Trigger en todo el documento — el video avanza con el scroll completo de la página
       st = ScrollTrigger.create({
-        trigger: container,
+        trigger: document.documentElement,
         start: "top top",
         end: "bottom bottom",
-        scrub: 1,
+        scrub: 1.5,
         onUpdate: (self) => {
           if (video.duration) {
             video.currentTime = self.progress * video.duration;
@@ -48,25 +52,15 @@ export function ScrollVideo({ children }: { children?: React.ReactNode }) {
   }, []);
 
   return (
-    <div ref={containerRef} style={{ height: "300vh" }} className="relative">
-      <div
-        className="sticky top-0 h-screen w-full overflow-hidden"
-        style={{ willChange: "transform" }}
-      >
-        <video
-          ref={videoRef}
-          src="/videos/back_animation.mp4"
-          className="h-full w-full object-cover"
-          muted
-          playsInline
-          preload="auto"
-        />
-        {children && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            {children}
-          </div>
-        )}
-      </div>
-    </div>
+    <video
+      ref={videoRef}
+      src="/videos/back_animation.mp4"
+      className="fixed inset-0 w-full h-full object-cover pointer-events-none"
+      style={{ zIndex: 0, willChange: "transform" }}
+      muted
+      playsInline
+      preload="auto"
+      aria-hidden="true"
+    />
   );
 }
