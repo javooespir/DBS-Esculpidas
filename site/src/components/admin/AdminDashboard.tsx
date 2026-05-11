@@ -401,7 +401,16 @@ function TurnosTab({ appointments, services }: { appointments: AppointmentWithSe
                     <Check size={12} />
                   </button>
                 )}
-                <a href={whatsappLinkForPhone(a.client_phone)} target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs flex items-center gap-1 hover:bg-white/10" title="Abrir WhatsApp">
+                <a
+                  href={whatsappLinkForPhone(
+                    a.client_phone,
+                    `Hola ${a.client_name}! Te escribo por tu turno en DBS Esculpidas 💅\n\n📅 ${fmtDateTimeShort(a.scheduled_at)}\n✨ ${a.services?.name ?? "Servicio"}\n\n¿En qué te puedo ayudar?`
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs flex items-center gap-1 hover:bg-white/10"
+                  title="Enviar WhatsApp con datos del turno"
+                >
                   <MessageCircle size={12} />
                 </a>
                 <button onClick={() => handleCancel(a)} className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center gap-1 hover:bg-red-500/20" title="Cancelar">

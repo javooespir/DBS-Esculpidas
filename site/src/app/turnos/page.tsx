@@ -22,7 +22,7 @@ export default async function TurnosPage({
   return (
     <>
       <Nav />
-      <main className="pt-24 md:pt-32 min-h-[100dvh]">
+      <main className="pt-24 md:pt-32 pb-24 md:pb-32 min-h-[100dvh]">
         <div className="container-page px-6 md:px-12">
           <div className="max-w-2xl mb-12">
             <p className="eyebrow mb-4">Reserva online</p>

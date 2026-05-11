@@ -46,7 +46,7 @@ export function BookingFlow({
         <button
           onClick={() => setMode("new")}
           className={`flex-1 px-4 py-2 text-sm rounded-full transition-colors ${
-            mode === "new" ? "bg-[var(--color-ink)] text-white" : "text-[var(--color-muted)]"
+            mode === "new" ? "bg-[var(--color-rose)] text-white" : "text-[var(--color-muted)]"
           }`}
         >
           Nueva reserva
@@ -54,7 +54,7 @@ export function BookingFlow({
         <button
           onClick={() => setMode("lookup")}
           className={`flex-1 px-4 py-2 text-sm rounded-full transition-colors ${
-            mode === "lookup" ? "bg-[var(--color-ink)] text-white" : "text-[var(--color-muted)]"
+            mode === "lookup" ? "bg-[var(--color-rose)] text-white" : "text-[var(--color-muted)]"
           }`}
         >
           Ya tengo turno
@@ -323,7 +323,7 @@ function NewBooking({
                   done
                     ? "bg-[var(--color-rose-deep)] text-white"
                     : active
-                    ? "bg-[var(--color-ink)] text-white"
+                    ? "bg-[var(--color-rose)] text-white"
                     : "bg-[var(--color-line)] text-[var(--color-muted)]"
                 }`}
               >
@@ -516,7 +516,7 @@ function CalendarGrid({ dates, selected, onSelect }: {
               type="button"
               disabled={isSunday}
               onClick={() => !isSunday && onSelect(d)}
-              className={`aspect-square sm:aspect-auto sm:py-3 px-1 rounded-lg border text-center transition-all flex flex-col items-center justify-center min-h-[60px] ${
+              className={`h-[52px] sm:h-auto sm:py-3 px-1 rounded-lg border text-center transition-all flex flex-col items-center justify-center ${
                 isSunday
                   ? "border-transparent text-[var(--color-line)] cursor-not-allowed"
                   : isSelected
@@ -524,7 +524,7 @@ function CalendarGrid({ dates, selected, onSelect }: {
                   : "border-[var(--color-line)] hover:border-[var(--color-rose-deep)] hover:bg-[var(--color-rose-soft)]"
               }`}
             >
-              <span className="text-xl md:text-2xl font-display leading-none">{d.getDate()}</span>
+              <span className="text-sm sm:text-xl md:text-2xl font-display leading-none">{d.getDate()}</span>
               <span className="text-[9px] md:text-[10px] uppercase mt-0.5 opacity-70">
                 {d.toLocaleDateString("es-AR", { month: "short" })}
               </span>
