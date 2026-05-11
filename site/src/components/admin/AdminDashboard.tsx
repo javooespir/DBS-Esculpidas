@@ -404,7 +404,7 @@ function TurnosTab({ appointments, services }: { appointments: AppointmentWithSe
                 <a
                   href={whatsappLinkForPhone(
                     a.client_phone,
-                    `Hola ${a.client_name}! Te escribo por tu turno en DBS Esculpidas 💅\n\n📅 ${fmtDateTimeShort(a.scheduled_at)}\n✨ ${a.services?.name ?? "Servicio"}\n\n¿En qué te puedo ayudar?`
+                    `Hola ${a.client_name}! Te escribo por tu turno en DB Studio Esculpidas 💅\n\n📅 ${fmtDateTimeShort(a.scheduled_at)}\n✨ ${a.services?.name ?? "Servicio"}\n\n¡Te espero! Recordá:\n\n💳 *Seña:* Para confirmar tu turno necesitás enviar la seña por transferencia. Sin seña confirmada el turno queda pendiente.\n\n📋 *Cancelaciones:*\n• Con +48hs de anticipación: se devuelve la seña\n• Con -48hs: sin devolución de seña\n• Con -24hs: no se puede cancelar online\n• Reprogramaciones: la seña se mantiene\n\n✅ *Antes de tu turno:*\n• Vení con las uñas limpias, sin esmalte ni restos de producto\n• Si tenés uñas postizas o acrílico de otro lugar, avisame antes\n• Llegá 5 minutos antes para que arranquemos en horario\n\n¡Cualquier consulta escribime! 🤍`
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
