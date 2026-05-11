@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Calendar, Lock, Tag, LogOut, Download, Plus, Check, X, Trash2, Loader2,
-  ChevronLeft, ChevronRight, Clock, MessageCircle, RotateCcw, Filter,
+  ChevronLeft, ChevronRight, Clock, MessageCircle, RotateCcw, Filter, Settings,
 } from "lucide-react";
 import type { AppointmentWithService, BlockedSlot, Service } from "@/lib/types";
 import { APPOINTMENT_STATUS_LABEL, BUSINESS_HOURS } from "@/lib/constants";
@@ -59,7 +59,50 @@ const tomorrowART = () => {
   return t;
 };
 
-type Tab = "agenda" | "turnos" | "blocks" | "services" | "trash";
+// =====================================================================
+// WA TEMPLATES — defaults y helper de sustitución
+// =====================================================================
+const DEFAULT_TEMPLATE_CHAT = `Hola {nombre}! Te escribo por tu turno en DB Studio Esculpidas 💅
+
+📅 {fecha_hora}
+✨ {tratamiento}
+
+¡Te espero! Recordá:
+
+💳 *Seña:* Para confirmar tu turno necesitás enviar la seña por transferencia. Sin seña confirmada el turno queda pendiente.
+
+📋 *Cancelaciones:*
+• Con +48hs de anticipación: se devuelve la seña
+• Con -48hs: sin devolución de seña
+• Con -24hs: no se puede cancelar online
+• Reprogramaciones: la seña se mantiene
+
+✅ *Antes de tu turno:*
+• Vení con las uñas limpias, sin esmalte ni restos de producto
+• Si tenés uñas postizas o acrílico de otro lugar, avisame antes
+• Llegá 5 minutos antes para que arranquemos en horario
+
+¡Cualquier consulta escribime! 🤍`;
+
+const DEFAULT_TEMPLATE_CONFIRM = `¡Hola {nombre}! ✅ Recibí tu seña, el turno está confirmado:
+
+📅 {fecha_hora}
+💅 {tratamiento}
+
+📋 *Políticas:*
+• Cancelaciones con +48hs: devolución de seña
+• Cancelaciones con -48hs: sin devolución
+• Reprogramaciones: mantenemos la seña
+
+¡Te espero! ✨`;
+
+const fillTemplate = (template: string, appt: AppointmentWithService): string =>
+  template
+    .replace(/{nombre}/g, appt.client_name)
+    .replace(/{tratamiento}/g, appt.services?.name ?? "Servicio")
+    .replace(/{fecha_hora}/g, fmtDateTimeShort(appt.scheduled_at));
+
+type Tab = "agenda" | "turnos" | "blocks" | "services" | "trash" | "config";
 
 export function AdminDashboard({
   appointments,
@@ -72,6 +115,19 @@ export function AdminDashboard({
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("agenda");
+  const [waTemplateChat, setWaTemplateChat] = useState(DEFAULT_TEMPLATE_CHAT);
+  const [waTemplateConfirm, setWaTemplateConfirm] = useState(DEFAULT_TEMPLATE_CONFIRM);
+
+  // Cargar templates guardados desde settings (si existen)
+  useEffect(() => {
+    fetch("/api/admin/settings")
+      .then((r) => r.json())
+      .then((data) => {
+        if (typeof data.wa_template_chat === "string") setWaTemplateChat(data.wa_template_chat);
+        if (typeof data.wa_template_confirm === "string") setWaTemplateConfirm(data.wa_template_confirm);
+      })
+      .catch(() => { /* usa defaults */ });
+  }, []);
 
   const logout = async () => {
     await fetch("/api/admin/login", { method: "DELETE" });
@@ -85,6 +141,7 @@ export function AdminDashboard({
     { id: "blocks", label: "Bloqueos", icon: Lock },
     { id: "services", label: "Servicios", icon: Tag },
     { id: "trash", label: "Papelera", icon: Trash2 },
+    { id: "config", label: "Config", icon: Settings },
   ];
 
   const trashCount = appointments.filter((a) => a.status === "cancelled").length;
@@ -130,10 +187,11 @@ export function AdminDashboard({
 
       <main className="container-page px-6 py-8">
         {tab === "agenda" && <AgendaTimelineTab appointments={appointments} />}
-        {tab === "turnos" && <TurnosTab appointments={appointments} services={services} />}
+        {tab === "turnos" && <TurnosTab appointments={appointments} services={services} waTemplateChat={waTemplateChat} waTemplateConfirm={waTemplateConfirm} />}
         {tab === "blocks" && <BlocksTab blocks={blocks} />}
         {tab === "services" && <ServicesTab services={services} />}
         {tab === "trash" && <TrashTab appointments={appointments} />}
+        {tab === "config" && <ConfigTab waTemplateChat={waTemplateChat} setWaTemplateChat={setWaTemplateChat} waTemplateConfirm={waTemplateConfirm} setWaTemplateConfirm={setWaTemplateConfirm} />}
       </main>
     </div>
   );
@@ -248,7 +306,12 @@ function AgendaTimelineTab({ appointments }: { appointments: AppointmentWithServ
 // =====================================================================
 type TurnosFilter = "today" | "tomorrow" | "week" | "all" | "date";
 
-function TurnosTab({ appointments, services }: { appointments: AppointmentWithService[]; services: Service[] }) {
+function TurnosTab({ appointments, services, waTemplateChat, waTemplateConfirm }: {
+  appointments: AppointmentWithService[];
+  services: Service[];
+  waTemplateChat: string;
+  waTemplateConfirm: string;
+}) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useState<TurnosFilter>("today");
@@ -297,20 +360,15 @@ function TurnosTab({ appointments, services }: { appointments: AppointmentWithSe
   };
 
   const handleConfirmDeposit = async (appt: AppointmentWithService) => {
-    if (!await action(appt, { status: "deposit_paid" })) return;
-    // Abrir WhatsApp con mensaje de confirmación + políticas
-    const msg = `¡Hola ${appt.client_name}! Te confirmo que recibí la seña, tu turno está reservado:
-
-📅 ${fmtDateTimeShort(appt.scheduled_at)}
-💅 ${appt.services?.name ?? "Servicio"}
-
-📋 *Políticas:*
-• Cancelaciones con +48hs: devolución de seña
-• Cancelaciones con -48hs: sin devolución
-• Reprogramaciones: mantenemos la seña
-
-¡Te espero! ✨`;
-    window.open(whatsappLinkForPhone(appt.client_phone, msg), "_blank");
+    // Abrir ventana ANTES del await — evita que el browser bloquee el popup en mobile
+    const waWindow = window.open("", "_blank");
+    if (!await action(appt, { status: "deposit_paid" })) {
+      waWindow?.close();
+      return;
+    }
+    const url = whatsappLinkForPhone(appt.client_phone, fillTemplate(waTemplateConfirm, appt));
+    if (waWindow) waWindow.location.href = url;
+    else window.open(url, "_blank");
   };
 
   const handleCancel = async (appt: AppointmentWithService) => {
@@ -402,10 +460,7 @@ function TurnosTab({ appointments, services }: { appointments: AppointmentWithSe
                   </button>
                 )}
                 <a
-                  href={whatsappLinkForPhone(
-                    a.client_phone,
-                    `Hola ${a.client_name}! Te escribo por tu turno en DB Studio Esculpidas 💅\n\n📅 ${fmtDateTimeShort(a.scheduled_at)}\n✨ ${a.services?.name ?? "Servicio"}\n\n¡Te espero! Recordá:\n\n💳 *Seña:* Para confirmar tu turno necesitás enviar la seña por transferencia. Sin seña confirmada el turno queda pendiente.\n\n📋 *Cancelaciones:*\n• Con +48hs de anticipación: se devuelve la seña\n• Con -48hs: sin devolución de seña\n• Con -24hs: no se puede cancelar online\n• Reprogramaciones: la seña se mantiene\n\n✅ *Antes de tu turno:*\n• Vení con las uñas limpias, sin esmalte ni restos de producto\n• Si tenés uñas postizas o acrílico de otro lugar, avisame antes\n• Llegá 5 minutos antes para que arranquemos en horario\n\n¡Cualquier consulta escribime! 🤍`
-                  )}
+                  href={whatsappLinkForPhone(a.client_phone, fillTemplate(waTemplateChat, a))}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs flex items-center gap-1 hover:bg-white/10"
@@ -791,6 +846,114 @@ function NewServiceForm({ onClose }: { onClose: () => void }) {
         </button>
       </div>
     </form>
+  );
+}
+
+// =====================================================================
+// CONFIG TAB — edición de templates de mensajes WA
+// =====================================================================
+function ConfigTab({
+  waTemplateChat,
+  setWaTemplateChat,
+  waTemplateConfirm,
+  setWaTemplateConfirm,
+}: {
+  waTemplateChat: string;
+  setWaTemplateChat: (v: string) => void;
+  waTemplateConfirm: string;
+  setWaTemplateConfirm: (v: string) => void;
+}) {
+  const [saving, setSaving] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+
+  const saveTemplate = async (key: string, value: string) => {
+    setSaving(key);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ key, value }),
+      });
+      if (res.ok) {
+        setSaved(key);
+        setTimeout(() => setSaved(null), 2500);
+      }
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const TemplateBlock = ({
+    title,
+    description,
+    settingKey,
+    value,
+    onChange,
+    rows = 12,
+  }: {
+    title: string;
+    description: string;
+    settingKey: string;
+    value: string;
+    onChange: (v: string) => void;
+    rows?: number;
+  }) => (
+    <div className="bg-[#141414] border border-white/10 rounded-xl p-6">
+      <h3 className="font-medium mb-1">{title}</h3>
+      <p className="text-xs text-white/40 mb-4">{description}</p>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-sm text-white/80 font-mono resize-y focus:outline-none focus:border-[var(--color-rose)] leading-relaxed"
+      />
+      <button
+        onClick={() => saveTemplate(settingKey, value)}
+        disabled={!!saving}
+        className="mt-3 btn-primary !bg-[var(--color-rose)] !text-black flex items-center gap-2"
+      >
+        {saving === settingKey
+          ? <Loader2 size={14} className="animate-spin" />
+          : saved === settingKey
+          ? <Check size={14} />
+          : null}
+        {saved === settingKey ? "¡Guardado!" : "Guardar mensaje"}
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="max-w-2xl space-y-8">
+      <div>
+        <h2 className="font-display text-2xl mb-2">Mensajes automáticos de WhatsApp</h2>
+        <p className="text-sm text-white/50 mb-2">
+          Personalizá los mensajes que se envían a los clientes. Usá estos placeholders:
+        </p>
+        <div className="flex flex-wrap gap-2 mb-6">
+          {["{nombre}", "{tratamiento}", "{fecha_hora}"].map((p) => (
+            <code key={p} className="bg-white/10 text-[var(--color-rose)] text-xs px-2 py-1 rounded font-mono">{p}</code>
+          ))}
+        </div>
+      </div>
+
+      <TemplateBlock
+        title="💬 Mensaje de chat (ícono WA en cada turno)"
+        description="Se pre-escribe en WhatsApp al tocar el ícono de chat. Incluye recordatorios e instrucciones previas al turno."
+        settingKey="wa_template_chat"
+        value={waTemplateChat}
+        onChange={setWaTemplateChat}
+        rows={14}
+      />
+
+      <TemplateBlock
+        title="✅ Mensaje de confirmación de seña"
+        description="Se envía automáticamente al marcar 'Confirmar seña'. Confirma el turno al cliente."
+        settingKey="wa_template_confirm"
+        value={waTemplateConfirm}
+        onChange={setWaTemplateConfirm}
+        rows={10}
+      />
+    </div>
   );
 }
 
