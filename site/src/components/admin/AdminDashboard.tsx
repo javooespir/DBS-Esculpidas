@@ -421,7 +421,7 @@ function TurnosTab({ appointments, services, waTemplateChat, waTemplateConfirm }
         </button>
       </div>
 
-      {adding && <ManualBookingForm services={services} onClose={() => setAdding(false)} />}
+      {adding && <ManualBookingForm services={services} appointments={appointments} onClose={() => setAdding(false)} />}
 
       {filtered.length === 0 ? (
         <p className="text-center py-12 text-white/50">Sin turnos en esta vista.</p>
@@ -539,13 +539,26 @@ function TrashTab({ appointments }: { appointments: AppointmentWithService[] }) 
 // =====================================================================
 // MANUAL BOOKING FORM
 // =====================================================================
-function ManualBookingForm({ services, onClose }: { services: Service[]; onClose: () => void }) {
+function ManualBookingForm({
+  services,
+  appointments,
+  onClose,
+}: {
+  services: Service[];
+  appointments: AppointmentWithService[];
+  onClose: () => void;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [forceConfirmed, setForceConfirmed] = useState(false);
   const activeServices = services.filter((s) => s.active);
+
+  const todayValue = dateToInputValue(new Date());
+  const [selectedDate, setSelectedDate] = useState(todayValue);
+  const [selectedTime, setSelectedTime] = useState("");
+
   const [form, setForm] = useState({
     service_id: activeServices[0]?.id ?? "",
-    scheduled_at: "",
     client_name: "",
     client_phone: "",
     client_email: "",
@@ -553,13 +566,84 @@ function ManualBookingForm({ services, onClose }: { services: Service[]; onClose
     confirmed: true,
   });
 
+  // Generate time slots for the selected date
+  const slots = useMemo(() => {
+    if (!selectedDate) return [];
+    const [y, m, d] = selectedDate.split("-").map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    const dow = dateObj.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    const hours = BUSINESS_HOURS[dow];
+    if (!hours) return [];
+    const [oh, om] = hours.open.split(":").map(Number);
+    const [ch, cm] = hours.close.split(":").map(Number);
+    const result: string[] = [];
+    const cur = new Date(dateObj);
+    cur.setHours(oh, om, 0, 0);
+    const end = new Date(dateObj);
+    end.setHours(ch, cm, 0, 0);
+    while (cur < end) {
+      result.push(cur.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false }));
+      cur.setMinutes(cur.getMinutes() + 30);
+    }
+    return result;
+  }, [selectedDate]);
+
+  // Active appointments for the selected date (non-cancelled)
+  const dayAppts = useMemo(() => {
+    if (!selectedDate) return [];
+    const [y, m, d] = selectedDate.split("-").map(Number);
+    const target = new Date(y, m - 1, d);
+    return appointments.filter(
+      (a) => a.status !== "cancelled" && sameArtDay(a.scheduled_at, target)
+    );
+  }, [appointments, selectedDate]);
+
+  // Build a map: "HH:mm" → appointment (for conflict detection)
+  const occupiedMap = useMemo(() => {
+    const map: Record<string, AppointmentWithService> = {};
+    for (const a of dayAppts) {
+      const timeLabel = fmtTime(a.scheduled_at);
+      map[timeLabel] = a;
+    }
+    return map;
+  }, [dayAppts]);
+
+  // Is the currently selected slot occupied?
+  const conflictAppt = selectedTime ? occupiedMap[selectedTime] : null;
+
+  // Build the scheduled_at ISO string from date + time
+  const scheduledAt = useMemo(() => {
+    if (!selectedDate || !selectedTime) return "";
+    const [h, min] = selectedTime.split(":").map(Number);
+    const [y, m, d] = selectedDate.split("-").map(Number);
+    const dt = new Date(y, m - 1, d, h, min);
+    return dt.toISOString();
+  }, [selectedDate, selectedTime]);
+
+  // Reset time selection when date changes
+  const handleDateChange = (v: string) => {
+    setSelectedDate(v);
+    setSelectedTime("");
+    setForceConfirmed(false);
+  };
+
+  const handleTimeChange = (v: string) => {
+    setSelectedTime(v);
+    setForceConfirmed(false);
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!scheduledAt) return;
+
+    // If there's a conflict and admin hasn't confirmed force-booking, block
+    if (conflictAppt && !forceConfirmed) return;
+
     setLoading(true);
     const res = await fetch("/api/admin/manual-booking", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, scheduled_at: scheduledAt }),
     });
     setLoading(false);
     if (res.ok) {
@@ -570,44 +654,150 @@ function ManualBookingForm({ services, onClose }: { services: Service[]; onClose
     }
   };
 
+  const isDayClosed = selectedDate && slots.length === 0;
+
   return (
     <form onSubmit={submit} className="bg-[#141414] border border-white/10 rounded-xl p-5 mb-6">
       <h3 className="font-display text-xl mb-4">Nuevo turno manual</h3>
+
       <div className="grid sm:grid-cols-2 gap-4 mb-4">
+        {/* Servicio */}
         <div>
           <label className="label !text-white/60">Servicio</label>
-          <select required className="input !bg-[#0A0A0A] !border-white/15 !text-white" value={form.service_id} onChange={(e) => setForm({ ...form, service_id: e.target.value })}>
-            {activeServices.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          <select
+            required
+            className="input !bg-[#0A0A0A] !border-white/15 !text-white"
+            value={form.service_id}
+            onChange={(e) => setForm({ ...form, service_id: e.target.value })}
+          >
+            {activeServices.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
           </select>
         </div>
+
+        {/* Fecha */}
         <div>
-          <label className="label !text-white/60">Fecha y hora</label>
-          <input type="datetime-local" required className="input !bg-[#0A0A0A] !border-white/15 !text-white" value={form.scheduled_at} onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })} />
+          <label className="label !text-white/60">Fecha</label>
+          <input
+            type="date"
+            required
+            className="input !bg-[#0A0A0A] !border-white/15 !text-white"
+            value={selectedDate}
+            onChange={(e) => handleDateChange(e.target.value)}
+          />
         </div>
+
+        {/* Horario — dropdown con slots */}
+        <div className="sm:col-span-2">
+          <label className="label !text-white/60">Horario</label>
+          {isDayClosed ? (
+            <p className="text-sm text-yellow-400 mt-1">Este día está cerrado (sin horarios disponibles).</p>
+          ) : (
+            <select
+              required
+              className={`input !bg-[#0A0A0A] !border-white/15 !text-white ${
+                conflictAppt ? "!border-orange-500/60" : ""
+              }`}
+              value={selectedTime}
+              onChange={(e) => handleTimeChange(e.target.value)}
+            >
+              <option value="">— Elegí un horario —</option>
+              {slots.map((slot) => {
+                const occupied = occupiedMap[slot];
+                return (
+                  <option key={slot} value={slot}>
+                    {occupied
+                      ? `⚠️ ${slot}  —  OCUPADO: ${occupied.client_name} (${occupied.services?.name ?? "turno"})`
+                      : `✓  ${slot}`}
+                  </option>
+                );
+              })}
+            </select>
+          )}
+        </div>
+
+        {/* Warning de conflicto */}
+        {conflictAppt && (
+          <div className="sm:col-span-2 bg-orange-500/10 border border-orange-500/40 rounded-xl p-4">
+            <p className="text-orange-300 font-semibold text-sm mb-1">
+              ⚠️ Este horario ya tiene un turno asignado
+            </p>
+            <p className="text-orange-200/80 text-xs mb-3">
+              <strong>{conflictAppt.client_name}</strong> tiene reservado{" "}
+              <strong>{conflictAppt.services?.name ?? "un servicio"}</strong> a las{" "}
+              <strong>{selectedTime}</strong>. Si creás este turno de todas formas, quedarán dos
+              turnos en el mismo horario — el error será tuyo.
+            </p>
+            <label className="flex items-center gap-2 text-sm text-orange-300 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={forceConfirmed}
+                onChange={(e) => setForceConfirmed(e.target.checked)}
+                className="accent-orange-500"
+              />
+              Entiendo el conflicto y quiero forzar el turno igual
+            </label>
+          </div>
+        )}
+
+        {/* Datos del cliente */}
         <div>
           <label className="label !text-white/60">Nombre</label>
-          <input required className="input !bg-[#0A0A0A] !border-white/15 !text-white" value={form.client_name} onChange={(e) => setForm({ ...form, client_name: e.target.value })} />
+          <input
+            required
+            className="input !bg-[#0A0A0A] !border-white/15 !text-white"
+            value={form.client_name}
+            onChange={(e) => setForm({ ...form, client_name: e.target.value })}
+          />
         </div>
         <div>
           <label className="label !text-white/60">Celular</label>
-          <input required className="input !bg-[#0A0A0A] !border-white/15 !text-white" value={form.client_phone} onChange={(e) => setForm({ ...form, client_phone: e.target.value })} />
+          <input
+            required
+            className="input !bg-[#0A0A0A] !border-white/15 !text-white"
+            value={form.client_phone}
+            onChange={(e) => setForm({ ...form, client_phone: e.target.value })}
+          />
         </div>
         <div className="sm:col-span-2">
           <label className="label !text-white/60">Email</label>
-          <input required type="email" className="input !bg-[#0A0A0A] !border-white/15 !text-white" value={form.client_email} onChange={(e) => setForm({ ...form, client_email: e.target.value })} />
+          <input
+            required
+            type="email"
+            className="input !bg-[#0A0A0A] !border-white/15 !text-white"
+            value={form.client_email}
+            onChange={(e) => setForm({ ...form, client_email: e.target.value })}
+          />
         </div>
         <div className="sm:col-span-2">
           <label className="label !text-white/60">Notas</label>
-          <input className="input !bg-[#0A0A0A] !border-white/15 !text-white" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          <input
+            className="input !bg-[#0A0A0A] !border-white/15 !text-white"
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          />
         </div>
       </div>
+
       <label className="flex items-center gap-2 mb-4 text-sm">
-        <input type="checkbox" checked={form.confirmed} onChange={(e) => setForm({ ...form, confirmed: e.target.checked })} />
+        <input
+          type="checkbox"
+          checked={form.confirmed}
+          onChange={(e) => setForm({ ...form, confirmed: e.target.checked })}
+        />
         Marcar seña como recibida
       </label>
+
       <div className="flex gap-2">
-        <button type="button" onClick={onClose} className="btn-secondary !border-white/30 !text-white">Cancelar</button>
-        <button type="submit" disabled={loading} className="btn-primary !bg-[var(--color-rose)] !text-black">
+        <button type="button" onClick={onClose} className="btn-secondary !border-white/30 !text-white">
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          disabled={loading || !scheduledAt || (conflictAppt !== null && !forceConfirmed)}
+          className="btn-primary !bg-[var(--color-rose)] !text-black disabled:opacity-40 disabled:cursor-not-allowed"
+        >
           {loading ? <Loader2 size={14} className="animate-spin" /> : "Crear turno"}
         </button>
       </div>
