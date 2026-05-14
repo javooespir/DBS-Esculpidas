@@ -550,7 +550,8 @@ function ManualBookingForm({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [forceConfirmed, setForceConfirmed] = useState(false);
+  const [forceConflict, setForceConflict] = useState(false);
+  const [forceMissing, setForceMissing] = useState(false);
   const activeServices = services.filter((s) => s.active);
 
   const todayValue = dateToInputValue(new Date());
@@ -566,7 +567,7 @@ function ManualBookingForm({
     confirmed: true,
   });
 
-  // Generate time slots for the selected date
+  // ── Slots del día ──────────────────────────────────────────────────────────
   const slots = useMemo(() => {
     if (!selectedDate) return [];
     const [y, m, d] = selectedDate.split("-").map(Number);
@@ -582,13 +583,15 @@ function ManualBookingForm({
     const end = new Date(dateObj);
     end.setHours(ch, cm, 0, 0);
     while (cur < end) {
-      result.push(cur.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false }));
+      result.push(
+        cur.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })
+      );
       cur.setMinutes(cur.getMinutes() + 30);
     }
     return result;
   }, [selectedDate]);
 
-  // Active appointments for the selected date (non-cancelled)
+  // ── Turnos activos del día ─────────────────────────────────────────────────
   const dayAppts = useMemo(() => {
     if (!selectedDate) return [];
     const [y, m, d] = selectedDate.split("-").map(Number);
@@ -598,46 +601,68 @@ function ManualBookingForm({
     );
   }, [appointments, selectedDate]);
 
-  // Build a map: "HH:mm" → appointment (for conflict detection)
+  /**
+   * occupiedMap: "HH:mm" → appointment que ocupa ese slot.
+   * Un turno de 90 min arrancando a las 10:00 ocupa 10:00, 10:30 y 11:00.
+   * Chequeamos si el slot cae dentro de [start, start + duration).
+   */
   const occupiedMap = useMemo(() => {
     const map: Record<string, AppointmentWithService> = {};
-    for (const a of dayAppts) {
-      const timeLabel = fmtTime(a.scheduled_at);
-      map[timeLabel] = a;
+    for (const slot of slots) {
+      const [sh, sm] = slot.split(":").map(Number);
+      for (const a of dayAppts) {
+        const aStart = new Date(a.scheduled_at).getTime();
+        const aEnd = aStart + (a.duration_minutes ?? 30) * 60_000;
+        const [y, mo, dd] = selectedDate.split("-").map(Number);
+        const slotMs = new Date(y, mo - 1, dd, sh, sm).getTime();
+        if (slotMs >= aStart && slotMs < aEnd) {
+          map[slot] = a;
+          break;
+        }
+      }
     }
     return map;
-  }, [dayAppts]);
+  }, [slots, dayAppts, selectedDate]);
 
-  // Is the currently selected slot occupied?
-  const conflictAppt = selectedTime ? occupiedMap[selectedTime] : null;
+  // ── Conflicto en el slot elegido ──────────────────────────────────────────
+  // FIX: usar `?? null` para evitar que `undefined !== null` sea `true`
+  const conflictAppt = selectedTime ? (occupiedMap[selectedTime] ?? null) : null;
 
-  // Build the scheduled_at ISO string from date + time
+  // ── ISO datetime del turno ────────────────────────────────────────────────
   const scheduledAt = useMemo(() => {
     if (!selectedDate || !selectedTime) return "";
     const [h, min] = selectedTime.split(":").map(Number);
     const [y, m, d] = selectedDate.split("-").map(Number);
-    const dt = new Date(y, m - 1, d, h, min);
-    return dt.toISOString();
+    return new Date(y, m - 1, d, h, min).toISOString();
   }, [selectedDate, selectedTime]);
 
-  // Reset time selection when date changes
+  // ── Datos faltantes (advertencia suave, no bloqueo) ───────────────────────
+  const missingFields = [
+    !form.client_name && "nombre",
+    !form.client_phone && "celular",
+    !form.client_email && "email",
+  ].filter(Boolean) as string[];
+  const hasMissing = missingFields.length > 0;
+
+  // ── Reset al cambiar fecha ────────────────────────────────────────────────
   const handleDateChange = (v: string) => {
     setSelectedDate(v);
     setSelectedTime("");
-    setForceConfirmed(false);
+    setForceConflict(false);
+    setForceMissing(false);
   };
 
   const handleTimeChange = (v: string) => {
     setSelectedTime(v);
-    setForceConfirmed(false);
+    setForceConflict(false);
   };
 
+  // ── Submit ────────────────────────────────────────────────────────────────
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!scheduledAt) return;
-
-    // If there's a conflict and admin hasn't confirmed force-booking, block
-    if (conflictAppt && !forceConfirmed) return;
+    if (conflictAppt && !forceConflict) return;
+    if (hasMissing && !forceMissing) return;
 
     setLoading(true);
     const res = await fetch("/api/admin/manual-booking", {
@@ -654,10 +679,21 @@ function ManualBookingForm({
     }
   };
 
-  const isDayClosed = selectedDate && slots.length === 0;
+  const isDayClosed = !!selectedDate && slots.length === 0;
+
+  // El botón solo se deshabilita si falta el horario, o hay conflicto/datos sin confirmar
+  const canSubmit =
+    !!scheduledAt &&
+    !isDayClosed &&
+    (!conflictAppt || forceConflict) &&
+    (!hasMissing || forceMissing);
 
   return (
-    <form onSubmit={submit} className="bg-[#141414] border border-white/10 rounded-xl p-5 mb-6">
+    <form
+      onSubmit={submit}
+      noValidate
+      className="bg-[#141414] border border-white/10 rounded-xl p-5 mb-6"
+    >
       <h3 className="font-display text-xl mb-4">Nuevo turno manual</h3>
 
       <div className="grid sm:grid-cols-2 gap-4 mb-4">
@@ -665,7 +701,6 @@ function ManualBookingForm({
         <div>
           <label className="label !text-white/60">Servicio</label>
           <select
-            required
             className="input !bg-[#0A0A0A] !border-white/15 !text-white"
             value={form.service_id}
             onChange={(e) => setForm({ ...form, service_id: e.target.value })}
@@ -681,35 +716,35 @@ function ManualBookingForm({
           <label className="label !text-white/60">Fecha</label>
           <input
             type="date"
-            required
             className="input !bg-[#0A0A0A] !border-white/15 !text-white"
             value={selectedDate}
             onChange={(e) => handleDateChange(e.target.value)}
           />
         </div>
 
-        {/* Horario — dropdown con slots */}
+        {/* Horario dropdown */}
         <div className="sm:col-span-2">
           <label className="label !text-white/60">Horario</label>
           {isDayClosed ? (
-            <p className="text-sm text-yellow-400 mt-1">Este día está cerrado (sin horarios disponibles).</p>
+            <p className="text-sm text-yellow-400 mt-1">
+              Este día está cerrado — no hay horarios disponibles.
+            </p>
           ) : (
             <select
-              required
               className={`input !bg-[#0A0A0A] !border-white/15 !text-white ${
-                conflictAppt ? "!border-orange-500/60" : ""
+                conflictAppt ? "!border-orange-500/60" : selectedTime ? "!border-green-500/40" : ""
               }`}
               value={selectedTime}
               onChange={(e) => handleTimeChange(e.target.value)}
             >
               <option value="">— Elegí un horario —</option>
               {slots.map((slot) => {
-                const occupied = occupiedMap[slot];
+                const occ = occupiedMap[slot];
                 return (
                   <option key={slot} value={slot}>
-                    {occupied
-                      ? `⚠️ ${slot}  —  OCUPADO: ${occupied.client_name} (${occupied.services?.name ?? "turno"})`
-                      : `✓  ${slot}`}
+                    {occ
+                      ? `⚠ ${slot}  —  OCUPADO: ${occ.client_name} (${occ.services?.name ?? "turno"})`
+                      : `${slot}`}
                   </option>
                 );
               })}
@@ -717,23 +752,26 @@ function ManualBookingForm({
           )}
         </div>
 
-        {/* Warning de conflicto */}
+        {/* Banner: conflicto de horario */}
         {conflictAppt && (
           <div className="sm:col-span-2 bg-orange-500/10 border border-orange-500/40 rounded-xl p-4">
             <p className="text-orange-300 font-semibold text-sm mb-1">
-              ⚠️ Este horario ya tiene un turno asignado
+              ⚠️ Este horario ya tiene un turno
             </p>
             <p className="text-orange-200/80 text-xs mb-3">
-              <strong>{conflictAppt.client_name}</strong> tiene reservado{" "}
+              <strong>{conflictAppt.client_name}</strong> tiene{" "}
               <strong>{conflictAppt.services?.name ?? "un servicio"}</strong> a las{" "}
-              <strong>{selectedTime}</strong>. Si creás este turno de todas formas, quedarán dos
-              turnos en el mismo horario — el error será tuyo.
+              <strong>{selectedTime}</strong>
+              {(conflictAppt.duration_minutes ?? 0) > 30 && (
+                <> (dura {conflictAppt.duration_minutes} min, ocupa varios slots)</>
+              )}
+              . Si forzás este turno, el error es del admin.
             </p>
             <label className="flex items-center gap-2 text-sm text-orange-300 cursor-pointer select-none">
               <input
                 type="checkbox"
-                checked={forceConfirmed}
-                onChange={(e) => setForceConfirmed(e.target.checked)}
+                checked={forceConflict}
+                onChange={(e) => setForceConflict(e.target.checked)}
                 className="accent-orange-500"
               />
               Entiendo el conflicto y quiero forzar el turno igual
@@ -745,7 +783,7 @@ function ManualBookingForm({
         <div>
           <label className="label !text-white/60">Nombre</label>
           <input
-            required
+            placeholder="Nombre de la clienta"
             className="input !bg-[#0A0A0A] !border-white/15 !text-white"
             value={form.client_name}
             onChange={(e) => setForm({ ...form, client_name: e.target.value })}
@@ -754,7 +792,7 @@ function ManualBookingForm({
         <div>
           <label className="label !text-white/60">Celular</label>
           <input
-            required
+            placeholder="Ej: 1156789012"
             className="input !bg-[#0A0A0A] !border-white/15 !text-white"
             value={form.client_phone}
             onChange={(e) => setForm({ ...form, client_phone: e.target.value })}
@@ -763,8 +801,8 @@ function ManualBookingForm({
         <div className="sm:col-span-2">
           <label className="label !text-white/60">Email</label>
           <input
-            required
             type="email"
+            placeholder="correo@ejemplo.com"
             className="input !bg-[#0A0A0A] !border-white/15 !text-white"
             value={form.client_email}
             onChange={(e) => setForm({ ...form, client_email: e.target.value })}
@@ -773,11 +811,34 @@ function ManualBookingForm({
         <div className="sm:col-span-2">
           <label className="label !text-white/60">Notas</label>
           <input
+            placeholder="Opcional"
             className="input !bg-[#0A0A0A] !border-white/15 !text-white"
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
         </div>
+
+        {/* Banner: datos faltantes */}
+        {hasMissing && (
+          <div className="sm:col-span-2 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+            <p className="text-yellow-300 font-semibold text-sm mb-1">
+              Faltan datos: {missingFields.join(", ")}
+            </p>
+            <p className="text-yellow-200/70 text-xs mb-3">
+              Podés guardar igual, pero el turno quedará incompleto y no podrás enviar WhatsApp
+              correctamente.
+            </p>
+            <label className="flex items-center gap-2 text-sm text-yellow-300 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={forceMissing}
+                onChange={(e) => setForceMissing(e.target.checked)}
+                className="accent-yellow-500"
+              />
+              Guardar de todas formas con datos incompletos
+            </label>
+          </div>
+        )}
       </div>
 
       <label className="flex items-center gap-2 mb-4 text-sm">
@@ -789,17 +850,25 @@ function ManualBookingForm({
         Marcar seña como recibida
       </label>
 
-      <div className="flex gap-2">
-        <button type="button" onClick={onClose} className="btn-secondary !border-white/30 !text-white">
+      <div className="flex gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={onClose}
+          className="btn-secondary !border-white/30 !text-white"
+        >
           Cancelar
         </button>
         <button
           type="submit"
-          disabled={loading || !scheduledAt || (conflictAppt !== null && !forceConfirmed)}
+          disabled={loading || !canSubmit}
           className="btn-primary !bg-[var(--color-rose)] !text-black disabled:opacity-40 disabled:cursor-not-allowed"
+          title={!scheduledAt ? "Elegí una fecha y horario primero" : undefined}
         >
           {loading ? <Loader2 size={14} className="animate-spin" /> : "Crear turno"}
         </button>
+        {!scheduledAt && (
+          <p className="text-xs text-white/40 self-center">Elegí fecha y horario para continuar</p>
+        )}
       </div>
     </form>
   );
