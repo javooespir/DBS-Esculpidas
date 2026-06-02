@@ -99,38 +99,83 @@ export function ServicesAnimated({ services }: ServicesAnimatedProps) {
           <div className="mt-6 w-12 h-px bg-[var(--color-rose)]" />
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {services.map((s) => (
-            <article
-              key={s.id}
-              className="service-card card hover:border-[var(--color-rose)] transition-colors group flex flex-col"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="font-display text-2xl leading-tight pr-4">
-                  {s.name}
-                </h3>
-                <span className="text-xs uppercase tracking-wider text-[var(--color-rose-deep)] whitespace-nowrap">
-                  {fmtDuration(s.duration_minutes)}
-                </span>
-              </div>
-              {s.description && (
-                <p className="text-sm text-[var(--color-muted)] mb-6 leading-relaxed">
-                  {s.description}
-                </p>
-              )}
-              <div className="mt-auto">
-                <p className="font-display text-3xl mb-1">{fmtMoney(s.price_ars)}</p>
-                <p className="text-xs text-[var(--color-muted)] mb-5">
-                  Seña: {fmtMoney(s.deposit_ars)}
-                </p>
-                <Link
-                  href={`/turnos?service=${s.slug}`}
-                  className="inline-flex items-center gap-2 text-sm font-medium border-b border-[var(--color-rose)] pb-1 text-[var(--color-rose-deep)] hover:text-[var(--color-rose)] hover:border-[var(--color-rose)] transition-colors"
-                >
-                  Reservar <ArrowRight size={14} />
-                </Link>
-              </div>
-            </article>
-          ))}
+          {(() => {
+            // Slugs de las dos extracciones — se fusionan en un card único en el landing
+            const EXTRACTION_SLUGS = new Set(["extra-extraccion-db", "extra-extraccion-otro"]);
+            const extractions = services.filter((s) => EXTRACTION_SLUGS.has(s.slug));
+            const regularServices = services.filter((s) => !EXTRACTION_SLUGS.has(s.slug));
+            const minExtPrice = extractions.length > 0
+              ? Math.min(...extractions.map((s) => s.price_ars))
+              : 0;
+            const extDuration = extractions.length > 0 ? extractions[0].duration_minutes : 30;
+
+            return (
+              <>
+                {regularServices.map((s) => (
+                  <article
+                    key={s.id}
+                    className="service-card card hover:border-[var(--color-rose)] transition-colors group flex flex-col"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="font-display text-2xl leading-tight pr-4">{s.name}</h3>
+                      <span className="text-xs uppercase tracking-wider text-[var(--color-rose-deep)] whitespace-nowrap">
+                        {fmtDuration(s.duration_minutes)}
+                      </span>
+                    </div>
+                    {s.description && (
+                      <p className="text-sm text-[var(--color-muted)] mb-6 leading-relaxed">
+                        {s.description}
+                      </p>
+                    )}
+                    <div className="mt-auto">
+                      <p className="font-display text-3xl mb-1">{fmtMoney(s.price_ars)}</p>
+                      <p className="text-xs text-[var(--color-muted)] mb-5">
+                        Seña: {fmtMoney(s.deposit_ars)}
+                      </p>
+                      <Link
+                        href={`/turnos?service=${s.slug}`}
+                        className="inline-flex items-center gap-2 text-sm font-medium border-b border-[var(--color-rose)] pb-1 text-[var(--color-rose-deep)] hover:text-[var(--color-rose)] hover:border-[var(--color-rose)] transition-colors"
+                      >
+                        Reservar <ArrowRight size={14} />
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+
+                {/* Card unificado para las dos extracciones */}
+                {extractions.length > 0 && (
+                  <article className="service-card card hover:border-[var(--color-rose)] transition-colors group flex flex-col">
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="font-display text-2xl leading-tight pr-4">Extracción</h3>
+                      <span className="text-xs uppercase tracking-wider text-[var(--color-rose-deep)] whitespace-nowrap">
+                        {fmtDuration(extDuration)}
+                      </span>
+                    </div>
+                    <div className="space-y-1 mb-6">
+                      {extractions.map((e) => (
+                        <p key={e.id} className="text-sm text-[var(--color-muted)]">
+                          {e.name === "Extracción de otro estudio" ? "Otro estudio" : "DB Esculpidas"}{" "}
+                          — {fmtMoney(e.price_ars)}
+                        </p>
+                      ))}
+                    </div>
+                    <div className="mt-auto">
+                      <p className="font-display text-3xl mb-1">
+                        desde {fmtMoney(minExtPrice)}
+                      </p>
+                      <p className="text-xs text-[var(--color-muted)] mb-5">Seña: consultar al reservar</p>
+                      <Link
+                        href="/turnos"
+                        className="inline-flex items-center gap-2 text-sm font-medium border-b border-[var(--color-rose)] pb-1 text-[var(--color-rose-deep)] hover:text-[var(--color-rose)] hover:border-[var(--color-rose)] transition-colors"
+                      >
+                        Reservar <ArrowRight size={14} />
+                      </Link>
+                    </div>
+                  </article>
+                )}
+              </>
+            );
+          })()}
         </div>
         <div className="mt-12 inline-flex items-center gap-3 border border-[var(--color-rose)] bg-[var(--color-rose-soft)] rounded-full px-5 py-3">
           <Sparkles

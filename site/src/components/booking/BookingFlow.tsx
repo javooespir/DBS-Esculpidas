@@ -205,7 +205,13 @@ function NewBooking({
     ? services.find((s) => s.slug === preselectedSlug) ?? null
     : null;
 
-  const [step, setStep] = useState<Step>(initialService ? "extras" : "service");
+  // Si no hay addons disponibles (migración no ejecutada o negocio sin extras),
+  // salteamos el paso "extras" directamente.
+  const hasAddons = addons.length > 0;
+
+  const [step, setStep] = useState<Step>(
+    initialService ? (hasAddons ? "extras" : "date") : "service"
+  );
   const [service, setService] = useState<Service | null>(initialService);
   const [selectedExtras, setSelectedExtras] = useState<ExtraSelection[]>([]);
   const [date, setDate] = useState<Date | null>(null);
@@ -318,7 +324,9 @@ function NewBooking({
     );
   }
 
-  const STEP_KEYS: Step[] = ["service", "extras", "date", "time", "details"];
+  const STEP_KEYS: Step[] = hasAddons
+    ? ["service", "extras", "date", "time", "details"]
+    : ["service", "date", "time", "details"];
   const STEP_LABELS: Record<Step, string> = {
     service: "Servicio",
     extras: "Extras",
@@ -371,7 +379,8 @@ function NewBooking({
               onClick={() => {
                 setService(s);
                 setSelectedExtras([]);
-                setStep("extras");
+                // Si no hay extras disponibles, ir directo a la fecha
+                setStep(hasAddons ? "extras" : "date");
               }}
               className={`card text-left transition-all ${
                 service?.id === s.id ? "border-[var(--color-rose-deep)]" : "hover:border-[var(--color-rose)]"
@@ -405,8 +414,12 @@ function NewBooking({
       {step === "date" && service && (
         <>
           <div className="mb-4 flex items-center justify-between">
-            <button type="button" onClick={() => setStep("extras")} className="btn-ghost">
-              <ArrowLeft size={14} /> Volver a extras
+            <button
+              type="button"
+              onClick={() => setStep(hasAddons ? "extras" : "service")}
+              className="btn-ghost"
+            >
+              <ArrowLeft size={14} /> {hasAddons ? "Volver a extras" : "Cambiar servicio"}
             </button>
             <span className="text-sm text-[var(--color-muted)]">
               {service.name} · {fmtMoney(service.price_ars + extrasTotalPrice)}

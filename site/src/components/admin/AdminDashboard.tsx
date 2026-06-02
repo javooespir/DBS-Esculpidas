@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import {
   Calendar, Lock, Tag, LogOut, Download, Plus, Check, X, Trash2, Loader2,
   ChevronLeft, ChevronRight, Clock, MessageCircle, RotateCcw, Filter, Settings,
-  Minus, UserSearch,
+  Minus, UserSearch, Camera,
 } from "lucide-react";
 import type { AppointmentWithService, BlockedSlot, ExtraSelection, Service } from "@/lib/types";
 import { APPOINTMENT_STATUS_LABEL, BUSINESS_HOURS } from "@/lib/constants";
+import { InstagramStoryGenerator } from "@/components/admin/InstagramStoryGenerator";
 
 const TZ = "America/Argentina/Buenos_Aires";
 
@@ -103,7 +104,7 @@ const fillTemplate = (template: string, appt: AppointmentWithService): string =>
     .replace(/{tratamiento}/g, appt.services?.name ?? "Servicio")
     .replace(/{fecha_hora}/g, fmtDateTimeShort(appt.scheduled_at));
 
-type Tab = "agenda" | "turnos" | "blocks" | "services" | "trash" | "config";
+type Tab = "agenda" | "turnos" | "blocks" | "services" | "trash" | "config" | "story";
 
 export function AdminDashboard({
   appointments,
@@ -142,6 +143,7 @@ export function AdminDashboard({
     { id: "blocks", label: "Bloqueos", icon: Lock },
     { id: "services", label: "Servicios", icon: Tag },
     { id: "trash", label: "Papelera", icon: Trash2 },
+    { id: "story", label: "Story IG", icon: Camera },
     { id: "config", label: "Config", icon: Settings },
   ];
 
@@ -192,6 +194,7 @@ export function AdminDashboard({
         {tab === "blocks" && <BlocksTab blocks={blocks} />}
         {tab === "services" && <ServicesTab services={services} />}
         {tab === "trash" && <TrashTab appointments={appointments} />}
+        {tab === "story" && <InstagramStoryGenerator />}
         {tab === "config" && <ConfigTab waTemplateChat={waTemplateChat} setWaTemplateChat={setWaTemplateChat} waTemplateConfirm={waTemplateConfirm} setWaTemplateConfirm={setWaTemplateConfirm} />}
       </main>
     </div>
