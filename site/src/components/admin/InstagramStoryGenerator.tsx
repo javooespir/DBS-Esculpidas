@@ -87,11 +87,6 @@ export function InstagramStoryGenerator() {
         const cardH = Math.round(H * 0.470);
         const cardCX = cardX + cardW / 2;
 
-        // Overlay blanco opaco para tapar el texto decorativo de la plantilla
-        ctx.fillStyle = "rgba(255,255,255,0.96)";
-        ctx.roundRect(cardX, cardY, cardW, cardH, 10);
-        ctx.fill();
-
         // ── Fecha centrada arriba del card
         const dateText = fmtDateCaption(dateStr);
         const dateFontSize = Math.round(W * 0.038);
