@@ -79,55 +79,45 @@ export function InstagramStoryGenerator() {
         // Dibujamos el fondo (plantilla)
         ctx.drawImage(img, 0, 0, W, H);
 
-        // ── Área blanca de la nueva plantilla
-        // La caja blanca ocupa aprox: x: 5%→95%  y: 27%→74%
-        const cardX = Math.round(W * 0.050);
-        const cardY = Math.round(H * 0.270);
-        const cardW = Math.round(W * 0.900);
-        const cardH = Math.round(H * 0.470);
+        // ── Coordenadas calibradas a la nueva plantilla generada con IA
+        // Área blanca total: y 34%→79%
+        // Zona de título (sobre los divisores de columna): y 34%→44%
+        // Zona de columnas (bajo los divisores):           y 46%→79%
+        const cardX  = Math.round(W * 0.050);
+        const cardW  = Math.round(W * 0.900);
         const cardCX = cardX + cardW / 2;
 
-        // ── Fecha centrada arriba del card
+        // ── Fecha — en el área de título (centrada entre 37-43%)
         const dateText = fmtDateCaption(dateStr);
         const dateFontSize = Math.round(W * 0.038);
         ctx.font = `bold ${dateFontSize}px 'Cormorant Garamond', 'Georgia', serif`;
         ctx.fillStyle = "#C97B9B";
         ctx.textAlign = "center";
-        ctx.textBaseline = "top";
+        ctx.textBaseline = "middle";
         ctx.fillText(
           dateText.charAt(0).toUpperCase() + dateText.slice(1),
           cardCX,
-          cardY + Math.round(H * 0.012)
+          Math.round(H * 0.400)
         );
 
-        // ── Separador
-        const sepY = cardY + Math.round(H * 0.045);
-        ctx.strokeStyle = "#E8C4D4";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(cardX + Math.round(cardW * 0.06), sepY);
-        ctx.lineTo(cardX + Math.round(cardW * 0.94), sepY);
-        ctx.stroke();
-
         if (slots.length === 0) {
-          const noSlotSize = Math.round(W * 0.038);
+          const noSlotSize = Math.round(W * 0.036);
           ctx.font = `${noSlotSize}px 'Cormorant Garamond', 'Georgia', serif`;
           ctx.fillStyle = "#aaa";
-          ctx.fillText("Sin disponibilidad", cardCX, sepY + Math.round(H * 0.06));
+          ctx.textBaseline = "top";
+          ctx.fillText("Sin disponibilidad", cardCX, Math.round(H * 0.490));
         } else {
-          // ── Layout en 3 columnas (izq · centro · der)
-          // Los horarios se leen de izquierda a derecha, fila por fila
-          const timeSize = Math.round(W * 0.046);
-          const lineH = Math.round(H * 0.034);
-          const startY = sepY + Math.round(H * 0.014);
+          // ── Slots en 3 columnas alineadas con los divisores de la plantilla
+          // Zona de slots: de 46% a 78% del alto
+          const slotsTopY  = Math.round(H * 0.460);
+          const slotsEndY  = Math.round(H * 0.780);
+          const timeSize   = Math.round(W * 0.046);
+          const lineH      = Math.round(H * 0.034);
 
-          // Filas que entran verticalmente
-          const availH = cardH - Math.round(H * 0.055) - Math.round(H * 0.024);
-          const rowsPerCol = Math.floor(availH / lineH);
-          // 3 columnas × rowsPerCol filas
-          const maxVisible = rowsPerCol * 3;
+          const rowsMax    = Math.floor((slotsEndY - slotsTopY) / lineH);
+          const maxVisible = rowsMax * 3;
 
-          // Centro X de cada columna (thirds del card)
+          // Centro X de cada columna (tercios del card)
           const col1X = cardX + Math.round(cardW * 0.167);
           const col2X = cardX + Math.round(cardW * 0.500);
           const col3X = cardX + Math.round(cardW * 0.833);
@@ -141,11 +131,11 @@ export function InstagramStoryGenerator() {
           ctx.textBaseline = "top";
 
           visible.forEach((slot, i) => {
-            const col = i % 3;       // 0, 1, 2
+            const col = i % 3;
             const row = Math.floor(i / 3);
-            const x = colXs[col];
-            const y = startY + row * lineH;
-            if (y + lineH <= cardY + cardH - Math.round(H * 0.018)) {
+            const x   = colXs[col];
+            const y   = slotsTopY + row * lineH;
+            if (y + lineH <= slotsEndY) {
               ctx.fillText(fmtSlotTime(slot.start), x, y);
             }
           });
@@ -157,7 +147,7 @@ export function InstagramStoryGenerator() {
             ctx.font = `italic ${moreSize}px Arial, sans-serif`;
             ctx.fillStyle = "#C97B9B";
             ctx.textAlign = "center";
-            ctx.fillText(`+ ${remaining} horarios más`, cardCX, cardY + cardH - Math.round(H * 0.014));
+            ctx.fillText(`+ ${remaining} horarios más`, cardCX, slotsEndY + Math.round(H * 0.004));
           }
         }
 
