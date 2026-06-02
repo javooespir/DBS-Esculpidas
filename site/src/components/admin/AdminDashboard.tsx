@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import {
   Calendar, Lock, Tag, LogOut, Download, Plus, Check, X, Trash2, Loader2,
   ChevronLeft, ChevronRight, Clock, MessageCircle, RotateCcw, Filter, Settings,
+  Minus, UserSearch,
 } from "lucide-react";
-import type { AppointmentWithService, BlockedSlot, Service } from "@/lib/types";
+import type { AppointmentWithService, BlockedSlot, ExtraSelection, Service } from "@/lib/types";
 import { APPOINTMENT_STATUS_LABEL, BUSINESS_HOURS } from "@/lib/constants";
 
 const TZ = "America/Argentina/Buenos_Aires";
@@ -277,6 +278,15 @@ function AgendaTimelineTab({ appointments }: { appointments: AppointmentWithServ
                         <p className="text-xs text-white/60">
                           {appt.services?.name} · {appt.client_phone} · {appt.duration_minutes} min
                         </p>
+                        {Array.isArray(appt.extras) && appt.extras.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {(appt.extras as ExtraSelection[]).map((e) => (
+                              <span key={e.service_id} className="text-[10px] bg-[var(--color-rose)]/15 text-[var(--color-rose)] px-1.5 py-0.5 rounded-full">
+                                {e.name}{e.quantity > 1 ? ` ×${e.quantity}` : ""}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <span className={`text-[10px] px-2 py-1 rounded-full ${
                         appt.status === "deposit_paid"
@@ -421,7 +431,14 @@ function TurnosTab({ appointments, services, waTemplateChat, waTemplateConfirm }
         </button>
       </div>
 
-      {adding && <ManualBookingForm services={services} appointments={appointments} onClose={() => setAdding(false)} />}
+      {adding && (
+        <ManualBookingForm
+          services={services.filter((s) => !s.is_addon)}
+          addons={services.filter((s) => s.is_addon)}
+          appointments={appointments}
+          onClose={() => setAdding(false)}
+        />
+      )}
 
       {filtered.length === 0 ? (
         <p className="text-center py-12 text-white/50">Sin turnos en esta vista.</p>
@@ -434,6 +451,15 @@ function TurnosTab({ appointments, services, waTemplateChat, waTemplateConfirm }
                 <p className="text-sm text-white/60">
                   {fmtDateTimeShort(a.scheduled_at)} · {a.services?.name ?? "—"}
                 </p>
+                {Array.isArray(a.extras) && a.extras.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {(a.extras as ExtraSelection[]).map((e) => (
+                      <span key={e.service_id} className="text-[10px] bg-[var(--color-rose)]/15 text-[var(--color-rose)] px-1.5 py-0.5 rounded-full">
+                        {e.name}{e.quantity > 1 ? ` ×${e.quantity}` : ""}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs text-white/40">
                   {a.client_phone} · {a.client_email}
                 </p>
@@ -541,10 +567,12 @@ function TrashTab({ appointments }: { appointments: AppointmentWithService[] }) 
 // =====================================================================
 function ManualBookingForm({
   services,
+  addons,
   appointments,
   onClose,
 }: {
   services: Service[];
+  addons: Service[];
   appointments: AppointmentWithService[];
   onClose: () => void;
 }) {
@@ -552,6 +580,14 @@ function ManualBookingForm({
   const [loading, setLoading] = useState(false);
   const [forceConflict, setForceConflict] = useState(false);
   const [forceMissing, setForceMissing] = useState(false);
+  const [selectedExtras, setSelectedExtras] = useState<ExtraSelection[]>([]);
+
+  // Client autocomplete
+  const [clientLookupQuery, setClientLookupQuery] = useState("");
+  const [clientResults, setClientResults] = useState<{ client_name: string; client_phone: string; client_email: string }[]>([]);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [clientSearching, setClientSearching] = useState(false);
+
   const activeServices = services.filter((s) => s.active);
 
   const todayValue = dateToInputValue(new Date());
@@ -624,6 +660,87 @@ function ManualBookingForm({
     return map;
   }, [slots, dayAppts, selectedDate]);
 
+  // ── Extras helpers ────────────────────────────────────────────────────────
+  const extrasTotalDuration = selectedExtras.reduce((s, e) => s + e.total_duration, 0);
+
+  const getAddonExtra = (id: string) => selectedExtras.find((e) => e.service_id === id);
+
+  const toggleAddon = (addon: Service) => {
+    const exists = getAddonExtra(addon.id);
+    if (exists) {
+      setSelectedExtras(selectedExtras.filter((e) => e.service_id !== addon.id));
+    } else {
+      setSelectedExtras([
+        ...selectedExtras,
+        {
+          service_id: addon.id,
+          slug: addon.slug,
+          name: addon.name,
+          quantity: 1,
+          unit_price: addon.price_ars,
+          unit_duration: addon.duration_minutes,
+          total_price: addon.price_ars,
+          total_duration: addon.duration_minutes,
+        },
+      ]);
+    }
+  };
+
+  const setAddonQty = (addon: Service, qty: number) => {
+    if (qty <= 0) {
+      setSelectedExtras(selectedExtras.filter((e) => e.service_id !== addon.id));
+      return;
+    }
+    const exists = getAddonExtra(addon.id);
+    if (exists) {
+      setSelectedExtras(
+        selectedExtras.map((e) =>
+          e.service_id === addon.id
+            ? { ...e, quantity: qty, total_price: addon.price_ars * qty, total_duration: addon.duration_minutes * qty }
+            : e
+        )
+      );
+    } else {
+      setSelectedExtras([
+        ...selectedExtras,
+        {
+          service_id: addon.id,
+          slug: addon.slug,
+          name: addon.name,
+          quantity: qty,
+          unit_price: addon.price_ars,
+          unit_duration: addon.duration_minutes,
+          total_price: addon.price_ars * qty,
+          total_duration: addon.duration_minutes * qty,
+        },
+      ]);
+    }
+  };
+
+  // ── Client autocomplete debounce ─────────────────────────────────────────
+  useEffect(() => {
+    const q = clientLookupQuery.trim();
+    if (q.length < 3) {
+      setClientResults([]);
+      setShowClientDropdown(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setClientSearching(true);
+      try {
+        const res = await fetch(`/api/admin/client-lookup?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        setClientResults(data.clients ?? []);
+        setShowClientDropdown(true);
+      } catch {
+        // silently fail
+      } finally {
+        setClientSearching(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [clientLookupQuery]);
+
   // ── Conflicto en el slot elegido ──────────────────────────────────────────
   // FIX: usar `?? null` para evitar que `undefined !== null` sea `true`
   const conflictAppt = selectedTime ? (occupiedMap[selectedTime] ?? null) : null;
@@ -668,7 +785,7 @@ function ManualBookingForm({
     const res = await fetch("/api/admin/manual-booking", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...form, scheduled_at: scheduledAt }),
+      body: JSON.stringify({ ...form, scheduled_at: scheduledAt, extras: selectedExtras }),
     });
     setLoading(false);
     if (res.ok) {
@@ -721,6 +838,58 @@ function ManualBookingForm({
             onChange={(e) => handleDateChange(e.target.value)}
           />
         </div>
+      </div>
+
+      {/* Extras / Addons */}
+      {addons.length > 0 && (
+        <div className="mb-4">
+          <p className="label !text-white/60 mb-2">Extras opcionales</p>
+          <div className="space-y-2">
+            {addons.filter((a) => a.active).map((addon) => {
+              const extra = getAddonExtra(addon.id);
+              const isSelected = !!extra;
+
+              if (addon.addon_per_nail) {
+                const qty = extra?.quantity ?? 0;
+                return (
+                  <div key={addon.id} className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg border ${isSelected ? "border-[var(--color-rose)]/60 bg-[var(--color-rose)]/5" : "border-white/10 bg-[#0A0A0A]"}`}>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-white">{addon.name}</span>
+                      <span className="text-xs text-white/40 ml-2">{fmtMoney(addon.price_ars)}/uña · {addon.duration_minutes}min/uña</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button type="button" onClick={() => setAddonQty(addon, Math.max(0, qty - 1))} disabled={qty === 0}
+                        className="w-6 h-6 rounded border border-white/15 flex items-center justify-center hover:border-[var(--color-rose)] disabled:opacity-30">
+                        <Minus size={10} />
+                      </button>
+                      <span className="w-5 text-center text-sm">{qty}</span>
+                      <button type="button" onClick={() => setAddonQty(addon, Math.min(9, qty + 1))} disabled={qty >= 9}
+                        className="w-6 h-6 rounded border border-white/15 flex items-center justify-center hover:border-[var(--color-rose)] disabled:opacity-30">
+                        <Plus size={10} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <label key={addon.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer ${isSelected ? "border-[var(--color-rose)]/60 bg-[var(--color-rose)]/5" : "border-white/10 bg-[#0A0A0A]"}`}>
+                  <input type="checkbox" checked={isSelected} onChange={() => toggleAddon(addon)} className="accent-[var(--color-rose)]" />
+                  <span className="text-sm text-white flex-1">{addon.name}</span>
+                  <span className="text-xs text-white/40">{fmtMoney(addon.price_ars)} · {addon.duration_minutes}min</span>
+                </label>
+              );
+            })}
+          </div>
+          {extrasTotalDuration > 0 && (
+            <p className="text-xs text-[var(--color-rose)] mt-2">
+              +{extrasTotalDuration} min de extras incluidos en el turno
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="grid sm:grid-cols-2 gap-4 mb-4">
 
         {/* Horario dropdown */}
         <div className="sm:col-span-2">
@@ -780,14 +949,51 @@ function ManualBookingForm({
         )}
 
         {/* Datos del cliente */}
-        <div>
+        <div className="relative">
           <label className="label !text-white/60">Nombre</label>
-          <input
-            placeholder="Nombre de la clienta"
-            className="input !bg-[#0A0A0A] !border-white/15 !text-white"
-            value={form.client_name}
-            onChange={(e) => setForm({ ...form, client_name: e.target.value })}
-          />
+          <div className="flex gap-1">
+            <input
+              placeholder="Nombre de la clienta"
+              className="input !bg-[#0A0A0A] !border-white/15 !text-white flex-1"
+              value={form.client_name}
+              onChange={(e) => {
+                setForm({ ...form, client_name: e.target.value });
+                setClientLookupQuery(e.target.value);
+              }}
+              onFocus={() => clientResults.length > 0 && setShowClientDropdown(true)}
+              autoComplete="off"
+            />
+            {clientSearching && <Loader2 size={14} className="animate-spin self-center text-white/40" />}
+            {!clientSearching && form.client_name.length >= 3 && (
+              <button type="button" onClick={() => setShowClientDropdown((v) => !v)} title="Buscar clienta anterior"
+                className="px-2 rounded-lg border border-white/15 hover:border-[var(--color-rose)] text-white/50 hover:text-[var(--color-rose)]">
+                <UserSearch size={14} />
+              </button>
+            )}
+          </div>
+          {showClientDropdown && clientResults.length > 0 && (
+            <div className="absolute z-20 top-full mt-1 w-full bg-[#1a1a1a] border border-white/15 rounded-xl shadow-xl overflow-hidden">
+              {clientResults.map((c, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => {
+                    setForm({ ...form, client_name: c.client_name, client_phone: c.client_phone, client_email: c.client_email });
+                    setShowClientDropdown(false);
+                  }}
+                  className="w-full text-left px-4 py-2.5 hover:bg-[var(--color-rose)]/10 border-b border-white/5 last:border-b-0"
+                >
+                  <p className="text-sm text-white font-medium">{c.client_name}</p>
+                  <p className="text-xs text-white/50">{c.client_phone}{c.client_email ? ` · ${c.client_email}` : ""}</p>
+                </button>
+              ))}
+            </div>
+          )}
+          {showClientDropdown && clientResults.length === 0 && form.client_name.length >= 3 && !clientSearching && (
+            <div className="absolute z-20 top-full mt-1 w-full bg-[#1a1a1a] border border-white/15 rounded-xl px-4 py-3 shadow-xl">
+              <p className="text-xs text-white/50">Sin resultados · <span className="bg-white/10 text-white/60 px-2 py-0.5 rounded-full text-[10px]">Clienta nueva</span></p>
+            </div>
+          )}
         </div>
         <div>
           <label className="label !text-white/60">Celular</label>

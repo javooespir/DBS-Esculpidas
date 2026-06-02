@@ -9,6 +9,19 @@ export type Service = {
   active: boolean;
   display_order: number;
   created_at: string;
+  is_addon: boolean;
+  addon_per_nail: boolean;
+};
+
+export type ExtraSelection = {
+  service_id: string;
+  slug: string;
+  name: string;
+  quantity: number; // 1 for most extras, 1-9 for per-nail
+  unit_price: number;
+  unit_duration: number;
+  total_price: number;
+  total_duration: number;
 };
 
 export type Appointment = {
@@ -26,6 +39,7 @@ export type Appointment = {
   cancelled_by: "client" | "admin" | null;
   created_at: string;
   updated_at: string;
+  extras: ExtraSelection[];
 };
 
 export type AppointmentWithService = Appointment & { services: Service | null };

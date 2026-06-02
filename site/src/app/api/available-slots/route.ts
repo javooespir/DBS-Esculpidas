@@ -8,6 +8,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const dateStr = searchParams.get("date"); // YYYY-MM-DD
   const serviceId = searchParams.get("service");
+  const extraDuration = Number(searchParams.get("extra_duration") ?? 0) || 0;
 
   if (!dateStr || !serviceId) {
     return NextResponse.json({ error: "Missing params" }, { status: 400 });
@@ -51,7 +52,7 @@ export async function GET(req: Request) {
 
   const slots = computeAvailableSlots(
     date,
-    service.duration_minutes,
+    service.duration_minutes + extraDuration,
     appointments ?? [],
     blocks ?? []
   );

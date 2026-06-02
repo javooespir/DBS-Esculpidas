@@ -22,6 +22,8 @@ export async function POST(req: Request) {
   const client_phone = String(body.client_phone ?? "").trim();
   const client_email = String(body.client_email ?? "").trim().toLowerCase() || null;
   const notes = body.notes ? String(body.notes).slice(0, 500) : null;
+  const extras = Array.isArray(body.extras) ? body.extras : [];
+  const extrasDuration = extras.reduce((sum: number, e: { total_duration?: number }) => sum + (Number(e.total_duration) || 0), 0);
 
   // Validaciones
   if (!service_id || !scheduled_at) return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
@@ -64,7 +66,8 @@ export async function POST(req: Request) {
       .gte("end_at", dayStart.toISOString()),
   ]);
 
-  const slots = computeAvailableSlots(start, service.duration_minutes, existing ?? [], blocks ?? []);
+  const totalDuration = service.duration_minutes + extrasDuration;
+  const slots = computeAvailableSlots(start, totalDuration, existing ?? [], blocks ?? []);
   const matching = slots.find((s) => s.start.getTime() === start.getTime());
   if (!matching || !matching.available) {
     return NextResponse.json({ error: "Ese horario ya no está disponible" }, { status: 409 });
@@ -78,9 +81,10 @@ export async function POST(req: Request) {
       client_phone,
       client_email,
       scheduled_at: start.toISOString(),
-      duration_minutes: service.duration_minutes,
+      duration_minutes: totalDuration,
       status: "pending",
       notes,
+      extras,
     })
     .select()
     .single();

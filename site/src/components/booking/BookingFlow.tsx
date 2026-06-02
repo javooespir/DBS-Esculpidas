@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, ArrowLeft, Check, Loader2, Search, X } from "lucide-react";
-import type { Service } from "@/lib/types";
+import { ArrowRight, ArrowLeft, Check, Loader2, Search, X, Minus, Plus } from "lucide-react";
+import type { ExtraSelection, Service } from "@/lib/types";
 import { BOOKING_RULES, whatsappLink } from "@/lib/constants";
 
 const TZ = "America/Argentina/Buenos_Aires";
@@ -19,7 +19,7 @@ const fmtDate = (d: Date) =>
 const fmtTime = (d: Date) =>
   d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ });
 
-type Step = "service" | "date" | "time" | "details" | "done";
+type Step = "service" | "extras" | "date" | "time" | "details" | "done";
 type Mode = "new" | "lookup";
 
 type LookupAppointment = {
@@ -33,9 +33,11 @@ type LookupAppointment = {
 
 export function BookingFlow({
   services,
+  addons,
   preselectedSlug,
 }: {
   services: Service[];
+  addons: Service[];
   preselectedSlug?: string;
 }) {
   const [mode, setMode] = useState<Mode>("new");
@@ -62,7 +64,7 @@ export function BookingFlow({
       </div>
 
       {mode === "new" ? (
-        <NewBooking services={services} preselectedSlug={preselectedSlug} />
+        <NewBooking services={services} addons={addons} preselectedSlug={preselectedSlug} />
       ) : (
         <LookupBooking />
       )}
@@ -81,7 +83,6 @@ function LookupBooking() {
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-  // Detectar si lo que ingresó parece email o teléfono
   const looksLikeEmail = query.includes("@");
 
   const search = async (e: React.FormEvent) => {
@@ -112,7 +113,6 @@ function LookupBooking() {
     if (!confirm("¿Seguro que querés cancelar este turno? Recordá: con menos de 48hs no hay devolución de seña, con menos de 24hs no se puede cancelar online.")) return;
     setCancellingId(id);
     try {
-      // Para verificar identidad: enviamos email o teléfono según lo que ingresó
       const val = query.trim();
       const body = looksLikeEmail ? { client_email: val } : { client_phone: val };
       const res = await fetch(`/api/turnos/${id}`, {
@@ -194,19 +194,20 @@ function LookupBooking() {
 // =====================================================================
 function NewBooking({
   services,
+  addons,
   preselectedSlug,
 }: {
   services: Service[];
+  addons: Service[];
   preselectedSlug?: string;
 }) {
   const initialService = preselectedSlug
     ? services.find((s) => s.slug === preselectedSlug) ?? null
     : null;
 
-  // Si vino con servicio preseleccionado: arrancar en "date". Si no: en "service".
-  // Solo se evalúa al montar, así no nos envía adelante cuando el usuario hace "back".
-  const [step, setStep] = useState<Step>(initialService ? "date" : "service");
+  const [step, setStep] = useState<Step>(initialService ? "extras" : "service");
   const [service, setService] = useState<Service | null>(initialService);
+  const [selectedExtras, setSelectedExtras] = useState<ExtraSelection[]>([]);
   const [date, setDate] = useState<Date | null>(null);
   const [time, setTime] = useState<Date | null>(null);
   const [slots, setSlots] = useState<{ start: string; available: boolean }[]>([]);
@@ -216,7 +217,9 @@ function NewBooking({
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<{ id: string } | null>(null);
 
-  // calendario: próximos 30 días, sin domingos (cerrado)
+  const extrasTotalPrice = selectedExtras.reduce((s, e) => s + e.total_price, 0);
+  const extrasTotalDuration = selectedExtras.reduce((s, e) => s + e.total_duration, 0);
+
   const dates = useMemo(() => {
     const arr: Date[] = [];
     const today = new Date();
@@ -229,21 +232,20 @@ function NewBooking({
     return arr;
   }, []);
 
-  // cargar slots cuando cambia date o service
   useEffect(() => {
     if (!service || !date) return;
     setLoadingSlots(true);
-    // dateStr en formato local YYYY-MM-DD (no toISOString que convierte a UTC)
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
     const d = String(date.getDate()).padStart(2, "0");
     const dateStr = `${y}-${m}-${d}`;
-    fetch(`/api/available-slots?date=${dateStr}&service=${service.id}`)
+    const url = `/api/available-slots?date=${dateStr}&service=${service.id}${extrasTotalDuration > 0 ? `&extra_duration=${extrasTotalDuration}` : ""}`;
+    fetch(url)
       .then((r) => r.json())
       .then((data) => setSlots(data.slots ?? []))
       .catch(() => setError("No pudimos cargar los horarios. Intentá de nuevo."))
       .finally(() => setLoadingSlots(false));
-  }, [service, date]);
+  }, [service, date, extrasTotalDuration]);
 
   const submit = async () => {
     if (!service || !time) return;
@@ -260,6 +262,7 @@ function NewBooking({
           client_phone: form.phone.trim(),
           client_email: form.email.trim(),
           notes: form.notes.trim() || null,
+          extras: selectedExtras,
         }),
       });
       const data = await res.json();
@@ -274,6 +277,7 @@ function NewBooking({
   };
 
   if (step === "done" && confirmation && service && time) {
+    const totalPrice = service.price_ars + extrasTotalPrice;
     const wa = whatsappLink(
       `Hola! Acabo de reservar el turno para ${service.name} el ${fmtDate(time)} a las ${fmtTime(time)}. Mi nombre es ${form.name}. Quería avisarte que envío la seña.`
     );
@@ -286,6 +290,15 @@ function NewBooking({
         <p className="text-[var(--color-muted)] mb-2">
           {service.name} · {fmtDate(time)} a las {fmtTime(time)}
         </p>
+        {selectedExtras.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1 justify-center">
+            {selectedExtras.map((e) => (
+              <span key={e.service_id} className="text-xs bg-[var(--color-rose-soft)] text-[var(--color-rose-deep)] px-2 py-0.5 rounded-full">
+                {e.name}{e.quantity > 1 ? ` ×${e.quantity}` : ""}
+              </span>
+            ))}
+          </div>
+        )}
         {form.email && (
           <p className="text-sm text-[var(--color-muted)] mb-2">
             Te enviamos un mail con los detalles.
@@ -294,6 +307,9 @@ function NewBooking({
         <p className="text-sm text-[var(--color-muted)] mb-8">
           Para confirmar, mandanos la seña de{" "}
           <strong>{fmtMoney(service.deposit_ars)}</strong> por transferencia.
+          {extrasTotalPrice > 0 && (
+            <> El total del turno es <strong>{fmtMoney(totalPrice)}</strong>.</>
+          )}
         </p>
         <a href={wa} target="_blank" rel="noopener noreferrer" className="btn-primary">
           Avisar por WhatsApp
@@ -302,18 +318,22 @@ function NewBooking({
     );
   }
 
+  const STEP_KEYS: Step[] = ["service", "extras", "date", "time", "details"];
+  const STEP_LABELS: Record<Step, string> = {
+    service: "Servicio",
+    extras: "Extras",
+    date: "Fecha",
+    time: "Hora",
+    details: "Datos",
+    done: "Listo",
+  };
+
   return (
     <div>
       {/* Stepper */}
       <ol className="flex items-center gap-2 mb-10 text-xs text-[var(--color-muted)] flex-wrap">
-        {(["service", "date", "time", "details"] as const).map((s, i) => {
-          const labels: Record<"service" | "date" | "time" | "details", string> = {
-            service: "Servicio",
-            date: "Fecha",
-            time: "Hora",
-            details: "Datos",
-          };
-          const idx = ["service", "date", "time", "details"].indexOf(step);
+        {STEP_KEYS.map((s, i) => {
+          const idx = STEP_KEYS.indexOf(step as Step);
           const active = i === idx;
           const done = i < idx;
           return (
@@ -329,8 +349,8 @@ function NewBooking({
               >
                 {done ? <Check size={12} /> : i + 1}
               </span>
-              <span className={active ? "text-[var(--color-ink)] font-medium" : ""}>{labels[s]}</span>
-              {i < 3 && <span className="text-[var(--color-line)]">/</span>}
+              <span className={active ? "text-[var(--color-ink)] font-medium" : ""}>{STEP_LABELS[s]}</span>
+              {i < STEP_KEYS.length - 1 && <span className="text-[var(--color-line)]">/</span>}
             </li>
           );
         })}
@@ -350,7 +370,8 @@ function NewBooking({
               type="button"
               onClick={() => {
                 setService(s);
-                setStep("date");
+                setSelectedExtras([]);
+                setStep("extras");
               }}
               className={`card text-left transition-all ${
                 service?.id === s.id ? "border-[var(--color-rose-deep)]" : "hover:border-[var(--color-rose)]"
@@ -369,14 +390,27 @@ function NewBooking({
         </div>
       )}
 
+      {step === "extras" && service && (
+        <ExtrasStep
+          service={service}
+          addons={addons}
+          selectedExtras={selectedExtras}
+          onChangeExtras={setSelectedExtras}
+          onSkip={() => { setDate(null); setTime(null); setStep("date"); }}
+          onContinue={() => { setDate(null); setTime(null); setStep("date"); }}
+          onBack={() => setStep("service")}
+        />
+      )}
+
       {step === "date" && service && (
         <>
           <div className="mb-4 flex items-center justify-between">
-            <button type="button" onClick={() => setStep("service")} className="btn-ghost">
-              <ArrowLeft size={14} /> Cambiar servicio
+            <button type="button" onClick={() => setStep("extras")} className="btn-ghost">
+              <ArrowLeft size={14} /> Volver a extras
             </button>
             <span className="text-sm text-[var(--color-muted)]">
-              {service.name} · {fmtMoney(service.price_ars)}
+              {service.name} · {fmtMoney(service.price_ars + extrasTotalPrice)}
+              {extrasTotalDuration > 0 && ` · ${fmtDuration(service.duration_minutes + extrasTotalDuration)}`}
             </span>
           </div>
           <CalendarGrid dates={dates} selected={date} onSelect={(d) => { setDate(d); setTime(null); setStep("time"); }} />
@@ -438,8 +472,17 @@ function NewBooking({
             <p className="text-sm text-[var(--color-muted)] mb-1">Estás reservando:</p>
             <p className="font-display text-2xl">{service.name}</p>
             <p className="text-sm">
-              {fmtDate(time)} a las {fmtTime(time)} · {fmtMoney(service.price_ars)} (seña {fmtMoney(service.deposit_ars)})
+              {fmtDate(time)} a las {fmtTime(time)} · {fmtMoney(service.price_ars + extrasTotalPrice)} (seña {fmtMoney(service.deposit_ars)})
             </p>
+            {selectedExtras.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {selectedExtras.map((e) => (
+                  <span key={e.service_id} className="text-xs bg-[var(--color-rose-soft)] text-[var(--color-rose-deep)] px-2 py-0.5 rounded-full">
+                    {e.name}{e.quantity > 1 ? ` ×${e.quantity}` : ""}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="space-y-4 mb-8">
@@ -481,6 +524,197 @@ function NewBooking({
 }
 
 // =====================================================================
+// EXTRAS STEP
+// =====================================================================
+function ExtrasStep({
+  service,
+  addons,
+  selectedExtras,
+  onChangeExtras,
+  onSkip,
+  onContinue,
+  onBack,
+}: {
+  service: Service;
+  addons: Service[];
+  selectedExtras: ExtraSelection[];
+  onChangeExtras: (extras: ExtraSelection[]) => void;
+  onSkip: () => void;
+  onContinue: () => void;
+  onBack: () => void;
+}) {
+  const getExtra = (id: string) => selectedExtras.find((e) => e.service_id === id);
+
+  const toggleExtra = (addon: Service, qty = 1) => {
+    const exists = getExtra(addon.id);
+    if (exists) {
+      onChangeExtras(selectedExtras.filter((e) => e.service_id !== addon.id));
+    } else {
+      onChangeExtras([
+        ...selectedExtras,
+        {
+          service_id: addon.id,
+          slug: addon.slug,
+          name: addon.name,
+          quantity: qty,
+          unit_price: addon.price_ars,
+          unit_duration: addon.duration_minutes,
+          total_price: addon.price_ars * qty,
+          total_duration: addon.duration_minutes * qty,
+        },
+      ]);
+    }
+  };
+
+  const setQty = (addon: Service, qty: number) => {
+    if (qty <= 0) {
+      onChangeExtras(selectedExtras.filter((e) => e.service_id !== addon.id));
+      return;
+    }
+    const exists = getExtra(addon.id);
+    if (exists) {
+      onChangeExtras(
+        selectedExtras.map((e) =>
+          e.service_id === addon.id
+            ? { ...e, quantity: qty, total_price: addon.price_ars * qty, total_duration: addon.duration_minutes * qty }
+            : e
+        )
+      );
+    } else {
+      onChangeExtras([
+        ...selectedExtras,
+        {
+          service_id: addon.id,
+          slug: addon.slug,
+          name: addon.name,
+          quantity: qty,
+          unit_price: addon.price_ars,
+          unit_duration: addon.duration_minutes,
+          total_price: addon.price_ars * qty,
+          total_duration: addon.duration_minutes * qty,
+        },
+      ]);
+    }
+  };
+
+  const fmtMoney = (n: number) =>
+    new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
+
+  const totalPrice = service.price_ars + selectedExtras.reduce((s, e) => s + e.total_price, 0);
+  const totalDuration = service.duration_minutes + selectedExtras.reduce((s, e) => s + e.total_duration, 0);
+
+  return (
+    <div className="max-w-xl">
+      <div className="mb-4 flex items-center justify-between">
+        <button type="button" onClick={onBack} className="btn-ghost">
+          <ArrowLeft size={14} /> Cambiar servicio
+        </button>
+        <span className="text-sm text-[var(--color-muted)]">{service.name}</span>
+      </div>
+
+      <h2 className="font-display text-2xl mb-1">¿Querés agregar algo más?</h2>
+      <p className="text-sm text-[var(--color-muted)] mb-6">Opcionales — podés saltear si no necesitás nada extra.</p>
+
+      <div className="space-y-3 mb-8">
+        {addons.map((addon) => {
+          const extra = getExtra(addon.id);
+          const isSelected = !!extra;
+
+          if (addon.addon_per_nail) {
+            const qty = extra?.quantity ?? 0;
+            return (
+              <div
+                key={addon.id}
+                className={`card transition-all ${isSelected ? "border-[var(--color-rose-deep)]" : ""}`}
+              >
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="flex-1">
+                    <p className="font-medium">{addon.name}</p>
+                    {addon.description && <p className="text-xs text-[var(--color-muted)] mt-0.5">{addon.description}</p>}
+                    <p className="text-sm mt-1">
+                      <span className="font-display">{fmtMoney(addon.price_ars)}</span>
+                      <span className="text-[var(--color-muted)] text-xs"> /uña · {addon.duration_minutes} min/uña</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setQty(addon, Math.max(0, qty - 1))}
+                      disabled={qty === 0}
+                      className="w-8 h-8 rounded-full border border-[var(--color-line)] flex items-center justify-center hover:border-[var(--color-rose)] disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <span className="w-6 text-center font-medium text-sm">{qty}</span>
+                    <button
+                      type="button"
+                      onClick={() => setQty(addon, Math.min(9, qty + 1))}
+                      disabled={qty >= 9}
+                      className="w-8 h-8 rounded-full border border-[var(--color-line)] flex items-center justify-center hover:border-[var(--color-rose)] disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                </div>
+                {isSelected && (
+                  <p className="text-xs text-[var(--color-rose-deep)] mt-2 font-medium">
+                    {qty} uña{qty !== 1 ? "s" : ""} · {fmtMoney(addon.price_ars * qty)} · {addon.duration_minutes * qty} min
+                  </p>
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <button
+              key={addon.id}
+              type="button"
+              onClick={() => toggleExtra(addon)}
+              className={`card w-full text-left transition-all ${
+                isSelected ? "border-[var(--color-rose-deep)] bg-[var(--color-rose-mist)]" : "hover:border-[var(--color-rose)]"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <p className="font-medium">{addon.name}</p>
+                  {addon.description && <p className="text-xs text-[var(--color-muted)] mt-0.5">{addon.description}</p>}
+                  <p className="text-sm mt-1">
+                    <span className="font-display">{fmtMoney(addon.price_ars)}</span>
+                    <span className="text-[var(--color-muted)] text-xs"> · {addon.duration_minutes} min</span>
+                  </p>
+                </div>
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                  isSelected ? "bg-[var(--color-rose-deep)] border-[var(--color-rose-deep)]" : "border-[var(--color-line)]"
+                }`}>
+                  {isSelected && <Check size={12} className="text-white" />}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Running total */}
+      <div className="mb-6 p-4 bg-[var(--color-rose-mist)] border border-[var(--color-line)] rounded-lg">
+        <p className="text-sm text-[var(--color-muted)]">Total estimado</p>
+        <p className="font-display text-2xl">
+          {fmtMoney(totalPrice)} · {fmtDuration(totalDuration)}
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={onSkip} className="btn-ghost">
+          Saltar
+        </button>
+        <button type="button" onClick={onContinue} className="btn-primary">
+          Continuar <ArrowRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// =====================================================================
 // CalendarGrid — grilla Lun–Dom con celdas vacías para mantener orden
 // =====================================================================
 const WEEKDAYS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
@@ -490,10 +724,7 @@ function CalendarGrid({ dates, selected, onSelect }: {
   selected: Date | null;
   onSelect: (d: Date) => void;
 }) {
-  // Posición Lun=0..Dom=6 desde getDay (que devuelve Dom=0..Sáb=6)
   const dowIndex = (d: Date) => (d.getDay() + 6) % 7;
-
-  // Padding inicial para que la primera fecha caiga en su columna correcta
   const padBefore = dates.length > 0 ? dowIndex(dates[0]) : 0;
 
   return (

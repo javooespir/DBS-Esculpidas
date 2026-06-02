@@ -17,7 +17,9 @@ export default async function TurnosPage({
     .select("*")
     .eq("active", true)
     .order("display_order");
-  const services = (data ?? []) as Service[];
+  const allServices = (data ?? []) as Service[];
+  const services = allServices.filter((s) => !s.is_addon);
+  const addons = allServices.filter((s) => s.is_addon);
 
   return (
     <>
@@ -33,7 +35,7 @@ export default async function TurnosPage({
               Tu reserva queda pendiente hasta que envíes la seña por transferencia.
             </p>
           </div>
-          <BookingFlow services={services} preselectedSlug={params.service} />
+          <BookingFlow services={services} addons={addons} preselectedSlug={params.service} />
         </div>
       </main>
       <Footer />

@@ -22,15 +22,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
   }
 
+  const extras = Array.isArray(body.extras) ? body.extras : [];
+  const extrasDuration = extras.reduce((sum: number, e: { total_duration?: number }) => sum + (Number(e.total_duration) || 0), 0);
+  const totalDuration = service.duration_minutes + extrasDuration;
+
   const { error } = await supabaseAdmin.from("appointments").insert({
     service_id: body.service_id,
     client_name: String(body.client_name).slice(0, 100),
     client_phone: String(body.client_phone).slice(0, 30),
     client_email: String(body.client_email).slice(0, 120).toLowerCase(),
     scheduled_at: scheduled_at.toISOString(),
-    duration_minutes: service.duration_minutes,
+    duration_minutes: totalDuration,
     status: body.confirmed ? "deposit_paid" : "pending",
     notes: body.notes ? String(body.notes).slice(0, 500) : null,
+    extras,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
