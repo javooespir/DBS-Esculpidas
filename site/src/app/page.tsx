@@ -14,7 +14,7 @@ export const revalidate = 60;
 
 async function getData() {
   const [{ data: services }, { data: aboutSetting }] = await Promise.all([
-    supabaseAdmin.from("services").select("*").eq("active", true).order("display_order"),
+    supabaseAdmin.from("services").select("*").eq("active", true).eq("is_addon", false).order("display_order"),
     supabaseAdmin.from("settings").select("value").eq("key", "about_text").maybeSingle(),
   ]);
   return {

@@ -177,15 +177,27 @@ export function ServicesAnimated({ services }: ServicesAnimatedProps) {
             );
           })()}
         </div>
-        <div className="mt-12 inline-flex items-center gap-3 border border-[var(--color-rose)] bg-[var(--color-rose-soft)] rounded-full px-5 py-3">
-          <Sparkles
-            size={16}
-            style={{ color: "var(--color-rose-deep)" }}
-            className="flex-shrink-0"
-          />
-          <p className="text-sm font-medium" style={{ color: "var(--color-rose-deep)" }}>
-            Mantenimientos disponibles cada 15 a 21 días para todos los servicios
-          </p>
+        <div className="mt-12 flex flex-col sm:flex-row gap-4">
+          <div className="inline-flex items-center gap-3 border border-[var(--color-rose)] bg-[var(--color-rose-soft)] rounded-full px-5 py-3">
+            <Sparkles
+              size={16}
+              style={{ color: "var(--color-rose-deep)" }}
+              className="flex-shrink-0"
+            />
+            <p className="text-sm font-medium" style={{ color: "var(--color-rose-deep)" }}>
+              Mantenimientos disponibles cada 15 a 21 días para todos los servicios
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-3 border border-[var(--color-rose)] bg-[var(--color-rose-soft)] rounded-full px-5 py-3">
+            <Sparkles
+              size={16}
+              style={{ color: "var(--color-rose-deep)" }}
+              className="flex-shrink-0"
+            />
+            <p className="text-sm font-medium" style={{ color: "var(--color-rose-deep)" }}>
+              Extras al reservar: uña rota, decoración, full deco, calcio final
+            </p>
+          </div>
         </div>
       </div>
     </section>
