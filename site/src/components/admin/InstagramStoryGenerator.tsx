@@ -79,75 +79,84 @@ export function InstagramStoryGenerator() {
         // Dibujamos el fondo (plantilla)
         ctx.drawImage(img, 0, 0, W, H);
 
-        // ── Coordenadas calibradas a la nueva plantilla generada con IA
-        // Área blanca total: y 34%→79%
-        // Zona de título (sobre los divisores de columna): y 34%→44%
-        // Zona de columnas (bajo los divisores):           y 46%→79%
-        const cardX  = Math.round(W * 0.050);
-        const cardW  = Math.round(W * 0.900);
+        // ── Coordenadas calibradas a la plantilla original (rosa con logo DB)
+        // Área blanca: x 4.5%→95.5%  y: 21%→64%
+        const cardX  = Math.round(W * 0.045);
+        const cardY  = Math.round(H * 0.210);
+        const cardW  = Math.round(W * 0.910);
+        const cardH  = Math.round(H * 0.430);
         const cardCX = cardX + cardW / 2;
 
-        // ── Fecha — en el área de título (centrada entre 37-43%)
+        // ── Fecha centrada
         const dateText = fmtDateCaption(dateStr);
-        const dateFontSize = Math.round(W * 0.038);
+        const dateFontSize = Math.round(W * 0.040);
         ctx.font = `bold ${dateFontSize}px 'Cormorant Garamond', 'Georgia', serif`;
         ctx.fillStyle = "#C97B9B";
         ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
+        ctx.textBaseline = "top";
         ctx.fillText(
           dateText.charAt(0).toUpperCase() + dateText.slice(1),
           cardCX,
-          Math.round(H * 0.400)
+          cardY + Math.round(H * 0.016)
         );
+
+        // ── Separador
+        const sepY = cardY + Math.round(H * 0.055);
+        ctx.strokeStyle = "#E8C4D4";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(cardX + Math.round(cardW * 0.08), sepY);
+        ctx.lineTo(cardX + Math.round(cardW * 0.92), sepY);
+        ctx.stroke();
 
         if (slots.length === 0) {
           const noSlotSize = Math.round(W * 0.036);
           ctx.font = `${noSlotSize}px 'Cormorant Garamond', 'Georgia', serif`;
           ctx.fillStyle = "#aaa";
-          ctx.textBaseline = "top";
-          ctx.fillText("Sin disponibilidad", cardCX, Math.round(H * 0.490));
+          ctx.fillText("Sin disponibilidad", cardCX, sepY + Math.round(H * 0.05));
         } else {
-          // ── Slots en 3 columnas alineadas con los divisores de la plantilla
-          // Zona de slots: de 46% a 78% del alto
-          const slotsTopY  = Math.round(H * 0.460);
-          const slotsEndY  = Math.round(H * 0.780);
-          const timeSize   = Math.round(W * 0.046);
-          const lineH      = Math.round(H * 0.034);
+          // ── Fuente y espaciado compactos
+          const timeSize = Math.round(W * 0.040);
+          const lineH    = Math.round(H * 0.029);
+          const startY   = sepY + Math.round(H * 0.013);
 
-          const rowsMax    = Math.floor((slotsEndY - slotsTopY) / lineH);
-          const maxVisible = rowsMax * 3;
-
-          // Centro X de cada columna (tercios del card)
-          const col1X = cardX + Math.round(cardW * 0.167);
-          const col2X = cardX + Math.round(cardW * 0.500);
-          const col3X = cardX + Math.round(cardW * 0.833);
-          const colXs = [col1X, col2X, col3X];
-
-          const visible = slots.slice(0, maxVisible);
+          // Filas que entran en el área útil del card
+          const availH     = cardH - Math.round(H * 0.070) - Math.round(H * 0.016);
+          const maxPerCol  = Math.floor(availH / lineH);
+          const useTwoCols = slots.length > maxPerCol;
+          const maxVisible = useTwoCols ? maxPerCol * 2 : maxPerCol;
+          const visible    = slots.slice(0, maxVisible);
 
           ctx.font = `bold ${timeSize}px 'Cormorant Garamond', 'Georgia', serif`;
           ctx.fillStyle = "#3D2233";
           ctx.textAlign = "center";
           ctx.textBaseline = "top";
 
-          visible.forEach((slot, i) => {
-            const col = i % 3;
-            const row = Math.floor(i / 3);
-            const x   = colXs[col];
-            const y   = slotsTopY + row * lineH;
-            if (y + lineH <= slotsEndY) {
-              ctx.fillText(fmtSlotTime(slot.start), x, y);
-            }
-          });
+          if (!useTwoCols) {
+            // ── Columna única centrada
+            visible.forEach((slot, i) => {
+              ctx.fillText(fmtSlotTime(slot.start), cardCX, startY + i * lineH);
+            });
+          } else {
+            // ── Dos columnas: izquierda y derecha
+            const col1X = cardX + Math.round(cardW * 0.27);
+            const col2X = cardX + Math.round(cardW * 0.73);
+            visible.forEach((slot, i) => {
+              const isCol2 = i >= maxPerCol;
+              const x = isCol2 ? col2X : col1X;
+              const row = isCol2 ? i - maxPerCol : i;
+              ctx.fillText(fmtSlotTime(slot.start), x, startY + row * lineH);
+            });
+          }
 
-          // "+N más" si no entraron todos
+          // "+N más" si aún sobran
           const remaining = slots.length - visible.length;
           if (remaining > 0) {
             const moreSize = Math.round(W * 0.022);
             ctx.font = `italic ${moreSize}px Arial, sans-serif`;
             ctx.fillStyle = "#C97B9B";
             ctx.textAlign = "center";
-            ctx.fillText(`+ ${remaining} horarios más`, cardCX, slotsEndY + Math.round(H * 0.004));
+            ctx.fillText(`+ ${remaining} horarios más`, cardCX, cardY + cardH - Math.round(H * 0.014));
           }
         }
 
