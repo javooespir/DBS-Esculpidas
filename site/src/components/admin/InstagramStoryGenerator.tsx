@@ -122,7 +122,6 @@ export function InstagramStoryGenerator() {
         } else {
           // ── Slots — fuente reducida para que entren más horarios
           const timeSize = Math.round(W * 0.054);
-          const noteSize = Math.round(W * 0.023);
           const lineH = Math.round(H * 0.035);
           let curY = sepY + Math.round(H * 0.014);
 
@@ -136,21 +135,10 @@ export function InstagramStoryGenerator() {
 
             const timeLabel = fmtSlotTime(slot.start);
 
-            if (slot.lastSlot) {
-              ctx.font = `bold ${timeSize}px 'Cormorant Garamond', 'Georgia', serif`;
-              ctx.fillStyle = "#C2A0B4";
-              ctx.textAlign = "center";
-              ctx.fillText(timeLabel, cardCX - Math.round(W * 0.055), curY);
-
-              ctx.font = `${noteSize}px Arial, sans-serif`;
-              ctx.fillStyle = "#C2A0B4";
-              ctx.fillText("(solo 30 min)", cardCX + Math.round(W * 0.13), curY + Math.round(lineH * 0.28));
-            } else {
-              ctx.font = `bold ${timeSize}px 'Cormorant Garamond', 'Georgia', serif`;
-              ctx.fillStyle = "#3D2233";
-              ctx.textAlign = "center";
-              ctx.fillText(timeLabel, cardCX, curY);
-            }
+            ctx.font = `bold ${timeSize}px 'Cormorant Garamond', 'Georgia', serif`;
+            ctx.fillStyle = "#3D2233";
+            ctx.textAlign = "center";
+            ctx.fillText(timeLabel, cardCX, curY);
 
             curY += lineH;
           }
@@ -158,7 +146,8 @@ export function InstagramStoryGenerator() {
           // "+N horarios más" si no entraron todos
           const remaining = slots.length - visibleSlots.length;
           if (remaining > 0) {
-            ctx.font = `italic ${noteSize}px Arial, sans-serif`;
+            const moreSize = Math.round(W * 0.023);
+            ctx.font = `italic ${moreSize}px Arial, sans-serif`;
             ctx.fillStyle = "#C97B9B";
             ctx.textAlign = "center";
             ctx.fillText(`+ ${remaining} horarios más`, cardCX, cardY + cardH - Math.round(H * 0.016));
@@ -244,9 +233,6 @@ export function InstagramStoryGenerator() {
           >
             <Download size={16} /> Descargar PNG
           </button>
-          <p className="text-xs text-white/30 text-center">
-            Los horarios en rosa claro con "(solo 30 min)" son los últimos disponibles del día.
-          </p>
         </div>
       )}
     </div>

@@ -28,10 +28,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ slots: [], closedDay: true });
   }
 
-  const [closeH, closeM] = hours.close.split(":").map(Number);
-  // Tiempo de cierre en minutos desde medianoche
-  const closeMinutes = closeH * 60 + closeM;
-
   const dayStart = new Date(date);
   dayStart.setHours(0, 0, 0, 0);
   const dayEnd = new Date(date);
@@ -50,41 +46,24 @@ export async function GET(req: Request) {
     .lte("start_at", dayEnd.toISOString())
     .gte("end_at", dayStart.toISOString());
 
-  // Calculamos slots con duración mínima de 30 min para ver todos los posibles
-  const slots30 = computeAvailableSlots(
+  // Pasamos new Date(0) como "now" para que no aplique la restricción de
+  // anticipación mínima (24hs) — el admin puede ver todos los slots del día
+  const PAST = new Date(0);
+
+  const slots = computeAvailableSlots(
     date,
     30,
     appointments ?? [],
-    blocks ?? []
+    blocks ?? [],
+    PAST
   );
 
-  // Calculamos con 60 min para saber cuáles admiten tratamientos más largos
-  const slots60 = computeAvailableSlots(
-    date,
-    60,
-    appointments ?? [],
-    blocks ?? []
-  );
-  const available60Set = new Set(
-    slots60.filter((s) => s.available).map((s) => s.start.toISOString())
-  );
-
-  const result = slots30
+  const result = slots
     .filter((s) => s.available)
-    .map((s) => {
-      const slotH = s.start.getHours();
-      const slotMin = s.start.getMinutes();
-      const slotMinutes = slotH * 60 + slotMin;
-
-      // Es "último slot" si solo cabe un tratamiento de 30 min (no 60 min)
-      const isLastSlot = !available60Set.has(s.start.toISOString())
-        || (closeMinutes - slotMinutes) <= 30;
-
-      return {
-        start: s.start.toISOString(),
-        lastSlot: isLastSlot,
-      };
-    });
+    .map((s) => ({
+      start: s.start.toISOString(),
+      lastSlot: false,
+    }));
 
   return NextResponse.json({ slots: result, closeTime: hours.close });
 }

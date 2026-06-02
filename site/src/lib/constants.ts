@@ -37,12 +37,12 @@ export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=Domingo
 
 export const BUSINESS_HOURS: Record<DayOfWeek, { open: string; close: string } | null> = {
   0: null, // Domingo cerrado
-  1: { open: "09:00", close: "18:00" }, // Lunes
-  2: { open: "09:00", close: "18:00" }, // Martes
-  3: { open: "09:00", close: "18:00" }, // Miércoles
-  4: { open: "09:00", close: "18:00" }, // Jueves
-  5: { open: "09:00", close: "18:00" }, // Viernes (admin bloquea quincenalmente)
-  6: { open: "09:00", close: "14:00" }, // Sábado
+  1: { open: "08:30", close: "18:00" }, // Lunes
+  2: { open: "08:30", close: "18:00" }, // Martes
+  3: { open: "08:30", close: "18:00" }, // Miércoles
+  4: { open: "08:30", close: "18:00" }, // Jueves
+  5: { open: "08:30", close: "18:00" }, // Viernes (admin bloquea quincenalmente)
+  6: { open: "08:30", close: "14:00" }, // Sábado
 };
 
 /**
