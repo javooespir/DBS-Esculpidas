@@ -87,8 +87,8 @@ export function InstagramStoryGenerator() {
         const cardH = Math.round(H * 0.470);
         const cardCX = cardX + cardW / 2;
 
-        // Overlay blanco suave para asegurar legibilidad sobre las líneas de columna
-        ctx.fillStyle = "rgba(255,255,255,0.65)";
+        // Overlay blanco opaco para tapar el texto decorativo de la plantilla
+        ctx.fillStyle = "rgba(255,255,255,0.96)";
         ctx.roundRect(cardX, cardY, cardW, cardH, 10);
         ctx.fill();
 
