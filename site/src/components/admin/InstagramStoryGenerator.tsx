@@ -65,7 +65,6 @@ export function InstagramStoryGenerator() {
       if (!canvas) return reject(new Error("Canvas no disponible"));
 
       const img = new Image();
-      // Importante: mismo origen → no necesita crossOrigin
       img.src = "/images/plantilla turnos.png";
 
       img.onload = () => {
@@ -80,23 +79,22 @@ export function InstagramStoryGenerator() {
         // Dibujamos el fondo (plantilla)
         ctx.drawImage(img, 0, 0, W, H);
 
-        // ── Coordenadas del área blanca (proporcionales al tamaño real de la imagen)
-        // Estimadas a partir de la plantilla: el rectángulo blanco ocupa aprox.
-        //   x: 4.5% → 95%   y: 21% → 64%
-        const cardX = Math.round(W * 0.045);
-        const cardY = Math.round(H * 0.21);
-        const cardW = Math.round(W * 0.91);
-        const cardH = Math.round(H * 0.43);
+        // ── Coordenadas calibradas al área blanca real de la plantilla
+        // El rectángulo blanco ocupa aprox: x: 5.5%→94.5%  y: 26.5%→71.5%
+        const cardX = Math.round(W * 0.055);
+        const cardY = Math.round(H * 0.265);
+        const cardW = Math.round(W * 0.890);
+        const cardH = Math.round(H * 0.450);
         const cardCX = cardX + cardW / 2;
 
-        // ── Fondo blanco semitransparente extra para asegurar legibilidad
-        ctx.fillStyle = "rgba(255,255,255,0.82)";
-        ctx.roundRect(cardX, cardY, cardW, cardH, 12);
+        // Overlay blanco semitransparente para tapar el watermark y mejorar legibilidad
+        ctx.fillStyle = "rgba(255,255,255,0.78)";
+        ctx.roundRect(cardX, cardY, cardW, cardH, 14);
         ctx.fill();
 
         // ── Fecha centrada
         const dateText = fmtDateCaption(dateStr);
-        const dateFontSize = Math.round(W * 0.048);
+        const dateFontSize = Math.round(W * 0.040);
         ctx.font = `bold ${dateFontSize}px 'Cormorant Garamond', 'Georgia', serif`;
         ctx.fillStyle = "#C97B9B";
         ctx.textAlign = "center";
@@ -104,50 +102,49 @@ export function InstagramStoryGenerator() {
         ctx.fillText(
           dateText.charAt(0).toUpperCase() + dateText.slice(1),
           cardCX,
-          cardY + Math.round(H * 0.018)
+          cardY + Math.round(H * 0.015)
         );
 
         // ── Separador
-        const sepY = cardY + Math.round(H * 0.065);
+        const sepY = cardY + Math.round(H * 0.050);
         ctx.strokeStyle = "#E8C4D4";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(cardX + Math.round(cardW * 0.1), sepY);
-        ctx.lineTo(cardX + Math.round(cardW * 0.9), sepY);
+        ctx.moveTo(cardX + Math.round(cardW * 0.08), sepY);
+        ctx.lineTo(cardX + Math.round(cardW * 0.92), sepY);
         ctx.stroke();
 
         if (slots.length === 0) {
-          // Sin disponibilidad
-          const noSlotSize = Math.round(W * 0.052);
+          const noSlotSize = Math.round(W * 0.042);
           ctx.font = `${noSlotSize}px 'Cormorant Garamond', 'Georgia', serif`;
           ctx.fillStyle = "#999";
           ctx.fillText("Sin disponibilidad", cardCX, sepY + Math.round(H * 0.04));
         } else {
-          // ── Slots
-          const timeSize = Math.round(W * 0.072);
-          const noteSize = Math.round(W * 0.032);
-          const lineH = Math.round(H * 0.058);
-          let curY = sepY + Math.round(H * 0.022);
+          // ── Slots — fuente reducida para que entren más horarios
+          const timeSize = Math.round(W * 0.054);
+          const noteSize = Math.round(W * 0.023);
+          const lineH = Math.round(H * 0.035);
+          let curY = sepY + Math.round(H * 0.014);
 
-          // Número de slots que entran en el card
-          const maxSlots = Math.floor((cardH - Math.round(H * 0.09)) / lineH);
+          // Espacio disponible para slots dentro del card
+          const slotAreaH = cardH - Math.round(H * 0.060) - Math.round(H * 0.025);
+          const maxSlots = Math.floor(slotAreaH / lineH);
           const visibleSlots = slots.slice(0, maxSlots);
 
           for (const slot of visibleSlots) {
-            if (curY + lineH > cardY + cardH - Math.round(H * 0.015)) break;
+            if (curY + lineH > cardY + cardH - Math.round(H * 0.022)) break;
 
             const timeLabel = fmtSlotTime(slot.start);
 
             if (slot.lastSlot) {
-              // Hora en color más suave + nota "(solo 30 min)"
               ctx.font = `bold ${timeSize}px 'Cormorant Garamond', 'Georgia', serif`;
               ctx.fillStyle = "#C2A0B4";
               ctx.textAlign = "center";
-              ctx.fillText(timeLabel, cardCX - Math.round(W * 0.08), curY);
+              ctx.fillText(timeLabel, cardCX - Math.round(W * 0.055), curY);
 
               ctx.font = `${noteSize}px Arial, sans-serif`;
               ctx.fillStyle = "#C2A0B4";
-              ctx.fillText("(solo 30 min)", cardCX + Math.round(W * 0.16), curY + Math.round(lineH * 0.28));
+              ctx.fillText("(solo 30 min)", cardCX + Math.round(W * 0.13), curY + Math.round(lineH * 0.28));
             } else {
               ctx.font = `bold ${timeSize}px 'Cormorant Garamond', 'Georgia', serif`;
               ctx.fillStyle = "#3D2233";
@@ -158,13 +155,13 @@ export function InstagramStoryGenerator() {
             curY += lineH;
           }
 
-          // Si hay más slots que los que entran, mostrar "+N más"
+          // "+N horarios más" si no entraron todos
           const remaining = slots.length - visibleSlots.length;
           if (remaining > 0) {
-            ctx.font = `${noteSize}px Arial, sans-serif`;
+            ctx.font = `italic ${noteSize}px Arial, sans-serif`;
             ctx.fillStyle = "#C97B9B";
             ctx.textAlign = "center";
-            ctx.fillText(`+${remaining} horarios más`, cardCX, cardY + cardH - Math.round(H * 0.018));
+            ctx.fillText(`+ ${remaining} horarios más`, cardCX, cardY + cardH - Math.round(H * 0.016));
           }
         }
 
