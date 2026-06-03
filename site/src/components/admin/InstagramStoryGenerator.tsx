@@ -107,61 +107,91 @@ export function InstagramStoryGenerator() {
         ctx.lineTo(cardX + Math.round(cardW * 0.90), sepY);
         ctx.stroke();
 
-        // ── Zona de horarios: 51% → 80%
+        // ── Zona de horarios: 51% → 83% (ocupa todo el área blanca)
         const slotsTopY = Math.round(H * 0.513);
-        const slotsEndY = Math.round(H * 0.800);
+        const slotsEndY = Math.round(H * 0.830);
 
         if (slots.length === 0) {
           ctx.font = `italic ${Math.round(W * 0.036)}px 'Cormorant Garamond', 'Georgia', serif`;
           ctx.fillStyle = "#C0A0B0";
-          ctx.textBaseline = "top";
-          ctx.fillText("Sin disponibilidad", cardCX, slotsTopY + Math.round(H * 0.04));
+          ctx.textBaseline = "middle";
+          ctx.fillText("Sin disponibilidad", cardCX, (slotsTopY + slotsEndY) / 2);
         } else {
-          // Fuente más grande para columna única, algo más chica si son 2
-          const lineH     = Math.round(H * 0.032);
-          const maxSingle = Math.floor((slotsEndY - slotsTopY) / lineH);
-          const useTwoCols = slots.length > maxSingle;
+          // ── Decidir columnas
+          const MIN_LINE_H   = Math.round(H * 0.032);
+          const MAX_LINE_H   = Math.round(H * 0.056);
+          const availH       = slotsEndY - slotsTopY;
+          const maxSingle    = Math.floor(availH / MIN_LINE_H);
+          const useTwoCols   = slots.length > maxSingle;
 
-          const timeSize = useTwoCols
-            ? Math.round(W * 0.042)
-            : Math.round(W * 0.050);
+          // Distribucion balanceada
+          const col1Count  = useTwoCols ? Math.ceil(slots.length / 2)  : slots.length;
+          const col2Count  = useTwoCols ? Math.floor(slots.length / 2) : 0;
+          const numRows    = useTwoCols ? Math.max(col1Count, col2Count) : slots.length;
+
+          // lineH dinámico: reparte el espacio equitativamente, con máximo para no quedar raro
+          const lineH  = Math.min(MAX_LINE_H, Math.floor(availH / numRows));
+          const timeSize = useTwoCols ? Math.round(W * 0.044) : Math.round(W * 0.052);
 
           ctx.font = `bold ${timeSize}px 'Cormorant Garamond', 'Georgia', serif`;
           ctx.fillStyle = "#3D2233";
           ctx.textAlign = "center";
-          ctx.textBaseline = "top";
+          ctx.textBaseline = "middle"; // middle para centrar verticalmente en la fila
 
           if (!useTwoCols) {
-            // ── Columna única, centrada
+            // ── Columna única centrada con separadores decorativos
             slots.forEach((slot, i) => {
-              const y = slotsTopY + i * lineH;
-              if (y + lineH <= slotsEndY)
-                ctx.fillText(fmtSlotTime(slot.start), cardCX, y);
+              const rowCY = slotsTopY + i * lineH + lineH / 2;
+
+              // Separador entre filas (excepto la última)
+              if (i > 0) {
+                ctx.strokeStyle = "rgba(212,160,181,0.35)";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(cardX + Math.round(cardW * 0.20), slotsTopY + i * lineH);
+                ctx.lineTo(cardX + Math.round(cardW * 0.80), slotsTopY + i * lineH);
+                ctx.stroke();
+              }
+
+              ctx.fillStyle = "#3D2233";
+              ctx.fillText(fmtSlotTime(slot.start), cardCX, rowCY);
             });
           } else {
-            // ── 2 columnas con distribución BALANCEADA
-            // col1 = primera mitad (ceil), col2 = segunda mitad (floor)
-            const col1Count = Math.ceil(slots.length / 2);
-            const maxRows   = Math.floor((slotsEndY - slotsTopY) / lineH);
-            const col1Slots = slots.slice(0, Math.min(col1Count, maxRows));
-            const col2Slots = slots.slice(col1Count, col1Count + maxRows);
-
+            // ── 2 columnas balanceadas
+            const col1Slots = slots.slice(0, col1Count);
+            const col2Slots = slots.slice(col1Count);
             const col1X = cardX + Math.round(cardW * 0.26);
             const col2X = cardX + Math.round(cardW * 0.74);
 
-            col1Slots.forEach((slot, i) => {
-              ctx.fillText(fmtSlotTime(slot.start), col1X, slotsTopY + i * lineH);
-            });
-            col2Slots.forEach((slot, i) => {
-              ctx.fillText(fmtSlotTime(slot.start), col2X, slotsTopY + i * lineH);
-            });
+            // Línea vertical divisoria
+            ctx.strokeStyle = "rgba(212,160,181,0.50)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cardCX, slotsTopY + Math.round(lineH * 0.2));
+            ctx.lineTo(cardCX, slotsTopY + numRows * lineH - Math.round(lineH * 0.2));
+            ctx.stroke();
 
-            const remaining = slots.length - col1Slots.length - col2Slots.length;
-            if (remaining > 0) {
-              ctx.font = `italic ${Math.round(W * 0.022)}px Arial, sans-serif`;
-              ctx.fillStyle = "#C97B9B";
+            // Filas con separadores horizontales
+            for (let i = 0; i < numRows; i++) {
+              const rowCY = slotsTopY + i * lineH + lineH / 2;
+
+              if (i > 0) {
+                ctx.strokeStyle = "rgba(212,160,181,0.25)";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(cardX + Math.round(cardW * 0.06), slotsTopY + i * lineH);
+                ctx.lineTo(cardX + Math.round(cardW * 0.94), slotsTopY + i * lineH);
+                ctx.stroke();
+              }
+
+              ctx.font = `bold ${timeSize}px 'Cormorant Garamond', 'Georgia', serif`;
+              ctx.fillStyle = "#3D2233";
               ctx.textAlign = "center";
-              ctx.fillText(`+ ${remaining} más`, cardCX, slotsEndY + Math.round(H * 0.006));
+
+              if (i < col1Slots.length)
+                ctx.fillText(fmtSlotTime(col1Slots[i].start), col1X, rowCY);
+              if (i < col2Slots.length)
+                ctx.fillText(fmtSlotTime(col2Slots[i].start), col2X, rowCY);
             }
           }
         }
