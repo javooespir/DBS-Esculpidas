@@ -79,29 +79,27 @@ export function InstagramStoryGenerator() {
         // Dibujamos el fondo (plantilla)
         ctx.drawImage(img, 0, 0, W, H);
 
-        // ── Coordenadas calibradas a la plantilla original (rosa con logo DB)
-        // Área blanca: x 4.5%→95.5%  y: 21%→64%
-        const cardX  = Math.round(W * 0.045);
-        const cardY  = Math.round(H * 0.210);
-        const cardW  = Math.round(W * 0.910);
-        const cardH  = Math.round(H * 0.430);
+        // ── Plantilla original: el watermark "Turnos Disponibles" ocupa y≈19%→30%
+        // Posicionamos todo el contenido POR DEBAJO del watermark
+        const cardX  = Math.round(W * 0.060);
+        const cardW  = Math.round(W * 0.880);
         const cardCX = cardX + cardW / 2;
 
-        // ── Fecha centrada
+        // Fecha — debajo del watermark, en zona despejada (~34%)
         const dateText = fmtDateCaption(dateStr);
-        const dateFontSize = Math.round(W * 0.040);
+        const dateFontSize = Math.round(W * 0.038);
         ctx.font = `bold ${dateFontSize}px 'Cormorant Garamond', 'Georgia', serif`;
         ctx.fillStyle = "#C97B9B";
         ctx.textAlign = "center";
-        ctx.textBaseline = "top";
+        ctx.textBaseline = "middle";
         ctx.fillText(
           dateText.charAt(0).toUpperCase() + dateText.slice(1),
           cardCX,
-          cardY + Math.round(H * 0.016)
+          Math.round(H * 0.340)
         );
 
-        // ── Separador
-        const sepY = cardY + Math.round(H * 0.055);
+        // Separador
+        const sepY = Math.round(H * 0.365);
         ctx.strokeStyle = "#E8C4D4";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -109,20 +107,19 @@ export function InstagramStoryGenerator() {
         ctx.lineTo(cardX + Math.round(cardW * 0.92), sepY);
         ctx.stroke();
 
-        if (slots.length === 0) {
-          const noSlotSize = Math.round(W * 0.036);
-          ctx.font = `${noSlotSize}px 'Cormorant Garamond', 'Georgia', serif`;
-          ctx.fillStyle = "#aaa";
-          ctx.fillText("Sin disponibilidad", cardCX, sepY + Math.round(H * 0.05));
-        } else {
-          // ── Fuente y espaciado compactos
-          const timeSize = Math.round(W * 0.040);
-          const lineH    = Math.round(H * 0.029);
-          const startY   = sepY + Math.round(H * 0.013);
+        // Zona de slots: de 37.5% a 62% del alto (dentro del área blanca)
+        const slotsTopY = Math.round(H * 0.375);
+        const slotsEndY = Math.round(H * 0.620);
 
-          // Filas que entran en el área útil del card
-          const availH     = cardH - Math.round(H * 0.070) - Math.round(H * 0.016);
-          const maxPerCol  = Math.floor(availH / lineH);
+        if (slots.length === 0) {
+          ctx.font = `${Math.round(W * 0.034)}px 'Cormorant Garamond', 'Georgia', serif`;
+          ctx.fillStyle = "#aaa";
+          ctx.textBaseline = "top";
+          ctx.fillText("Sin disponibilidad", cardCX, slotsTopY + Math.round(H * 0.03));
+        } else {
+          const timeSize   = Math.round(W * 0.038);
+          const lineH      = Math.round(H * 0.028);
+          const maxPerCol  = Math.floor((slotsEndY - slotsTopY) / lineH);
           const useTwoCols = slots.length > maxPerCol;
           const maxVisible = useTwoCols ? maxPerCol * 2 : maxPerCol;
           const visible    = slots.slice(0, maxVisible);
@@ -133,30 +130,29 @@ export function InstagramStoryGenerator() {
           ctx.textBaseline = "top";
 
           if (!useTwoCols) {
-            // ── Columna única centrada
+            // Columna única centrada
             visible.forEach((slot, i) => {
-              ctx.fillText(fmtSlotTime(slot.start), cardCX, startY + i * lineH);
+              ctx.fillText(fmtSlotTime(slot.start), cardCX, slotsTopY + i * lineH);
             });
           } else {
-            // ── Dos columnas: izquierda y derecha
+            // Dos columnas
             const col1X = cardX + Math.round(cardW * 0.27);
             const col2X = cardX + Math.round(cardW * 0.73);
             visible.forEach((slot, i) => {
               const isCol2 = i >= maxPerCol;
-              const x = isCol2 ? col2X : col1X;
+              const x   = isCol2 ? col2X : col1X;
               const row = isCol2 ? i - maxPerCol : i;
-              ctx.fillText(fmtSlotTime(slot.start), x, startY + row * lineH);
+              ctx.fillText(fmtSlotTime(slot.start), x, slotsTopY + row * lineH);
             });
           }
 
-          // "+N más" si aún sobran
+          // "+N más" si sobran
           const remaining = slots.length - visible.length;
           if (remaining > 0) {
-            const moreSize = Math.round(W * 0.022);
-            ctx.font = `italic ${moreSize}px Arial, sans-serif`;
+            ctx.font = `italic ${Math.round(W * 0.022)}px Arial, sans-serif`;
             ctx.fillStyle = "#C97B9B";
             ctx.textAlign = "center";
-            ctx.fillText(`+ ${remaining} horarios más`, cardCX, cardY + cardH - Math.round(H * 0.014));
+            ctx.fillText(`+ ${remaining} más`, cardCX, slotsEndY + Math.round(H * 0.005));
           }
         }
 
