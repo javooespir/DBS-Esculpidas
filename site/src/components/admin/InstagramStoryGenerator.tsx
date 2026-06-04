@@ -65,7 +65,7 @@ export function InstagramStoryGenerator() {
       if (!canvas) return reject(new Error("Canvas no disponible"));
 
       const img = new Image();
-      img.src = "/images/plantilla turnos.png";
+      img.src = "/images/plantilla%20turnos.png";
 
       img.onload = () => {
         const W = img.naturalWidth;
@@ -80,26 +80,70 @@ export function InstagramStoryGenerator() {
         ctx.drawImage(img, 0, 0, W, H);
 
         // ── Plantilla original
-        // Watermark "Turnos Disponibles": y ≈ 21%→44%
-        // Área blanca limpia: y ≈ 44%→82%
+        // Rectángulo blanco: y ≈ 28%→85%
+        // Watermark "Turnos Disponibles" ocupa la parte superior del blanco: ~28%→54%
+        // Área útil (debajo del watermark, dentro del blanco): ~54%→84%
         const cardX  = Math.round(W * 0.055);
         const cardW  = Math.round(W * 0.890);
         const cardCX = cardX + cardW / 2;
 
-        // ── Fecha — centrada justo debajo del watermark (~47%)
         const dateText = fmtDateCaption(dateStr);
-        ctx.font = `bold ${Math.round(W * 0.044)}px 'Cormorant Garamond', 'Georgia', serif`;
+        const dateFontSize = Math.round(W * 0.044);
+
+        // ── Área disponible dentro del rectángulo blanco, bajo el watermark
+        const areaTop    = Math.round(H * 0.255);  // debajo del watermark
+        const areaBottom = Math.round(H * 0.840);  // borde inferior del blanco
+        const areaH      = areaBottom - areaTop;
+        // Usamos el 15% superior como padding en vez de centrar,
+        // así el bloque queda anclado cerca del top del área libre
+
+        // ── Métricas fijas del bloque
+        const dateLineH    = dateFontSize * 1.4;
+        const gapDateSep   = Math.round(H * 0.012);
+        const sepThickness = 2;
+        const gapSepSlots  = Math.round(H * 0.010);
+
+        // ── Espacio que queda para los slots
+        const slotsAvailH = areaH - dateLineH - gapDateSep - sepThickness - gapSepSlots;
+
+        // ── Decidir columnas
+        const MIN_LINE_H = Math.round(H * 0.028);
+        const MAX_LINE_H = Math.round(H * 0.052);
+        const maxSingleRows = Math.floor(slotsAvailH / MIN_LINE_H);
+        const useTwoCols = slots.length > maxSingleRows;
+        const col1Count  = useTwoCols ? Math.ceil(slots.length / 2)  : slots.length;
+        const col2Count  = useTwoCols ? Math.floor(slots.length / 2) : 0;
+        const numRows    = slots.length === 0 ? 1 : (useTwoCols ? Math.max(col1Count, col2Count) : slots.length);
+
+        // lineH: divide el espacio disponible entre las filas, con tope máximo
+        const lineH = Math.min(MAX_LINE_H, Math.floor(slotsAvailH / numRows));
+
+        // ── Altura real del bloque de slots
+        const slotsAreaH = lineH * numRows;
+
+        // ── Altura total del bloque de contenido
+        const blockH = dateLineH + gapDateSep + sepThickness + gapSepSlots + slotsAreaH;
+
+        // ── Posición vertical: empieza directo desde areaTop con padding mínimo
+        const blockTopY = areaTop + Math.round(H * 0.010);
+        const dateCY     = blockTopY + dateLineH / 2;
+        const sepY       = blockTopY + dateLineH + gapDateSep;
+        const slotsTopY  = sepY + sepThickness + gapSepSlots;
+
+        const timeSize = useTwoCols ? Math.round(W * 0.044) : Math.round(W * 0.052);
+
+        // ── Fecha
+        ctx.font = `bold ${dateFontSize}px 'Cormorant Garamond', 'Georgia', serif`;
         ctx.fillStyle = "#C97B9B";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(
           dateText.charAt(0).toUpperCase() + dateText.slice(1),
           cardCX,
-          Math.round(H * 0.470)
+          Math.round(dateCY)
         );
 
         // ── Separador elegante
-        const sepY = Math.round(H * 0.498);
         ctx.strokeStyle = "#D4A0B5";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -107,43 +151,23 @@ export function InstagramStoryGenerator() {
         ctx.lineTo(cardX + Math.round(cardW * 0.90), sepY);
         ctx.stroke();
 
-        // ── Zona de horarios: 51% → 83% (ocupa todo el área blanca)
-        const slotsTopY = Math.round(H * 0.513);
-        const slotsEndY = Math.round(H * 0.830);
-
+        // ── Zona de horarios
         if (slots.length === 0) {
           ctx.font = `italic ${Math.round(W * 0.036)}px 'Cormorant Garamond', 'Georgia', serif`;
           ctx.fillStyle = "#C0A0B0";
           ctx.textBaseline = "middle";
-          ctx.fillText("Sin disponibilidad", cardCX, (slotsTopY + slotsEndY) / 2);
+          ctx.fillText("Sin disponibilidad", cardCX, slotsTopY + slotsAreaH / 2);
         } else {
-          // ── Decidir columnas
-          const MIN_LINE_H   = Math.round(H * 0.032);
-          const MAX_LINE_H   = Math.round(H * 0.056);
-          const availH       = slotsEndY - slotsTopY;
-          const maxSingle    = Math.floor(availH / MIN_LINE_H);
-          const useTwoCols   = slots.length > maxSingle;
-
-          // Distribucion balanceada
-          const col1Count  = useTwoCols ? Math.ceil(slots.length / 2)  : slots.length;
-          const col2Count  = useTwoCols ? Math.floor(slots.length / 2) : 0;
-          const numRows    = useTwoCols ? Math.max(col1Count, col2Count) : slots.length;
-
-          // lineH dinámico: reparte el espacio equitativamente, con máximo para no quedar raro
-          const lineH  = Math.min(MAX_LINE_H, Math.floor(availH / numRows));
-          const timeSize = useTwoCols ? Math.round(W * 0.044) : Math.round(W * 0.052);
-
           ctx.font = `bold ${timeSize}px 'Cormorant Garamond', 'Georgia', serif`;
           ctx.fillStyle = "#3D2233";
           ctx.textAlign = "center";
-          ctx.textBaseline = "middle"; // middle para centrar verticalmente en la fila
+          ctx.textBaseline = "middle";
 
           if (!useTwoCols) {
             // ── Columna única centrada con separadores decorativos
             slots.forEach((slot, i) => {
               const rowCY = slotsTopY + i * lineH + lineH / 2;
 
-              // Separador entre filas (excepto la última)
               if (i > 0) {
                 ctx.strokeStyle = "rgba(212,160,181,0.35)";
                 ctx.lineWidth = 1;
