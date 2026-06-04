@@ -91,7 +91,7 @@ export function InstagramStoryGenerator() {
         const dateFontSize = Math.round(W * 0.044);
 
         // ── Área disponible dentro del rectángulo blanco, bajo el watermark
-        const areaTop    = Math.round(H * 0.255);  // debajo del watermark
+        const areaTop    = Math.round(H * 0.355);  // debajo del watermark
         const areaBottom = Math.round(H * 0.840);  // borde inferior del blanco
         const areaH      = areaBottom - areaTop;
         // Usamos el 15% superior como padding en vez de centrar,
@@ -130,7 +130,7 @@ export function InstagramStoryGenerator() {
         const sepY       = blockTopY + dateLineH + gapDateSep;
         const slotsTopY  = sepY + sepThickness + gapSepSlots;
 
-        const timeSize = useTwoCols ? Math.round(W * 0.044) : Math.round(W * 0.052);
+        const timeSize = useTwoCols ? Math.round(W * 0.034) : Math.round(W * 0.038);
 
         // ── Fecha
         ctx.font = `bold ${dateFontSize}px 'Cormorant Garamond', 'Georgia', serif`;
