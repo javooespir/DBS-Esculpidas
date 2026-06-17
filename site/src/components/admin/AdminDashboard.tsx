@@ -1091,13 +1091,26 @@ function BlocksTab({ blocks }: { blocks: BlockedSlot[] }) {
   const [form, setForm] = useState({ start_at: "", end_at: "", reason: "" });
   const [loading, setLoading] = useState(false);
 
+  // datetime-local da "YYYY-MM-DDTHH:mm" sin timezone.
+  // Vercel corre en UTC, así que hay que offsetear +3h para ART (UTC-3).
+  const artToUTC = (localStr: string) => {
+    const [datePart, timePart] = localStr.split("T");
+    const [y, mo, d] = datePart.split("-").map(Number);
+    const [h, mi] = (timePart ?? "00:00").split(":").map(Number);
+    return new Date(Date.UTC(y, mo - 1, d, h + 3, mi)).toISOString();
+  };
+
   const add = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     const res = await fetch("/api/admin/blocks", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        start_at: artToUTC(form.start_at),
+        end_at:   artToUTC(form.end_at),
+        reason:   form.reason,
+      }),
     });
     setLoading(false);
     if (res.ok) { setForm({ start_at: "", end_at: "", reason: "" }); router.refresh(); }
